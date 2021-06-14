@@ -46,7 +46,7 @@ void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
     if((*q)->head == NULL) //la lista conteneva un solo elemento
       (*q)->tail = NULL;
 
-
+    free(tmp);
     return ret;
   }
 }

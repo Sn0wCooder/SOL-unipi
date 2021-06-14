@@ -18,24 +18,75 @@
 //#include "errors.c"
 #include "queue.h"
 
-int isNumber(const char* s) {
-  if (s==NULL) return 1;
-  if (strlen(s)==0) return 1;
+typedef struct _CodaComandi {
+  char cmd;
+  char* name;
+  int n;
+} NodoComando;
+
+void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo mette nella coda
+  NodoComando *new = malloc(sizeof(NodoComando));
+  new->cmd = cmd;
+  new->name = name;
+  new->n = n;
+  push(q, new);
+}
+
+void printQueue(Queue *q) {
+  Node* tmp = q->head;
+  NodoComando *no = NULL;
+  while(tmp != NULL) {
+    no = tmp->data;
+    fprintf(stderr, "comando %c nome %s n %d\n", no->cmd, no->name, no->n);
+    tmp = tmp->next;
+  }
+}
+
+/**int isNumber(const char* s) {
+  if (s==NULL)
+    return 1;
+  if (strlen(s)==0)
+    return 1;
   char* e = NULL;
   errno = 0;
   long val = strtol(s, &e, 10);
-  if (errno == ERANGE) return 2;    // overflow
+  val = 0;
+  if (errno == ERANGE)
+    return 2;    // overflow
   if (e != NULL && *e == (char)0) {
     return 1;   // successo
   }
   return 0;   // non e' un numero
+}**/
+
+int isNumber (char* s) {
+  int ok = 1;
+  int len = strlen(s);
+  int i = 0;
+  while(ok && i < len) {
+    if(!isdigit(s[i]))
+      ok = 0;
+    i++;
+  }
+  return ok;
+
+
+
+
+  /**for (i=0;i<length; i++)
+        if (!isdigit(input[i]))
+        {
+            printf ("Entered input is not a number\n");
+            exit(1);
+        }**/
 }
 
 int main(int argc, char* argv[]) {
   int c;
-  int index, sflags, lcount;
-  char* next, login;
+  //int index, sflags, lcount;
+  //char* next, login;
   char* arg, *token, *save;
+  Queue *q = malloc(sizeof(Queue));
   while((c = getopt(argc, argv, "hf:w:W:RS")) != -1){
     switch(c){
         case 'h':
@@ -55,11 +106,14 @@ int main(int argc, char* argv[]) {
           );
           exit(EXIT_SUCCESS);
           break;
-        case 'f':
-          printf("filename %s\n", optarg);
+        case 'f': {
+          insert(&q, 'f', optarg, 0);
+          //printf("filename %s\n", optarg);
+          //printQueue(q);
           break;
-        case 'w':
-            printf("guardo w %s\n", optarg);
+        }
+        case 'w': {
+            //printf("guardo w %s\n", optarg);
             //controllare: se ci sono più dirname, se c'è n e se n è un numero
 
             arg = malloc(sizeof(char) * strlen(optarg)); //argomento di w
@@ -85,6 +139,7 @@ int main(int argc, char* argv[]) {
             }
             else if(contavirgole == 1) {
               //controllare se l'ultimo token è un numero
+              //fprintf(stderr, "tmp da vedere %s\n", tmp);
               if(isNumber(tmp))
                 num = atoi(tmp);
               else {
@@ -96,12 +151,15 @@ int main(int argc, char* argv[]) {
             }
 
             //int num = atoi(&optarg[strlen(optarg) - 1]);
-            printf("%s %d\n", dirname, num);
+            insert(&q, 'w', dirname, num);
+            //printf("%s %d\n", dirname, num);
+            //printQueue(q);
 
             free(arg);
             break;
-        case 'W':
-            printf("Sto guardando gli argomenti di -l\n");
+          }
+        case 'W': {
+            //printf("Sto guardando gli argomenti di -l\n");
 
             arg = malloc(sizeof(char) * strlen(optarg));
             strncpy(arg, optarg, strlen(optarg));
@@ -109,11 +167,15 @@ int main(int argc, char* argv[]) {
             save = NULL;
             token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
             while(token) {
-              printf("%s\n", token);
+              //printf("%s\n", token);
+              insert(&q, 'W', token, 0);
               token = strtok_r(NULL, ",", &save);
             }
             free(arg);
+            printQueue(q);
+            //printf("\n\n\n");
             break;
+          }
         case 'R': {
             //R può avere opzionalmente una opzione, che è messa quindi facoltativa e parsata a parte
             printf("guardo R\n");
@@ -132,7 +194,14 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
               }
             }
-            printf("caso R %d\n", nfacoltativo);
+
+
+            printQueue(q);
+            printf("\n\n\n");
+            insert(&q, 'R', NULL, nfacoltativo);
+            //sleep(1);
+            //printf("caso R %d\n", nfacoltativo);
+            printQueue(q);
             break;
         }
         case 'S':
