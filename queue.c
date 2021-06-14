@@ -6,11 +6,11 @@
 
 #include "queue.h"
 
-#ifndef QUEUE_H_
-#define QUEUE_H_
+//#ifndef QUEUE_H_
+//#define QUEUE_H_
 
-Queue initQueue() { //inizializza una coda vuota
-  Queue q = malloc(sizeof(Queue));
+Queue* initQueue() { //inizializza una coda vuota
+  Queue *q = malloc(sizeof(Queue));
   //Node n = malloc(sizeof(Node));
   q->head = NULL;
   q->tail = NULL;
@@ -19,19 +19,36 @@ Queue initQueue() { //inizializza una coda vuota
 }
 
 void push(Queue **q, void* el) { //inserimento in coda in una FIFO
-  Node n = malloc(sizeof(Node));
+  Node *n = malloc(sizeof(Node));
   n->data = el;
   n->next = NULL;
   //inserimento in coda
-  if(*q->head == NULL) { //inserimento in coda vuota
-    *q->head = n;
-    *q->tail = n;
-    *q->len = 1;
+  if((*q)->head == NULL) { //inserimento in coda vuota
+    (*q)->head = n;
+    (*q)->tail = n;
+    (*q)->len = 1;
   } else { //inserimento in coda
-    (*q->tail)->next = n;
-    *q->tail = n;
-    *q->len = *q->len + 1;
+    ((*q)->tail)->next = n;
+    (*q)->tail = n;
+    (*q)->len++; // = *q->len + 1;
   }
 }
 
-#endif
+void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
+  if((*q)->head == NULL) { //la lista è già vuota
+    fprintf(stderr, "lista vuota");
+    return NULL;
+  } else {
+    void *ret = ((*q)->head)->data;
+    Node* tmp = (*q)->head;
+    (*q)->head = ((*q)->head)->next;
+    (*q)->len--;
+    if((*q)->head == NULL) //la lista conteneva un solo elemento
+      (*q)->tail = NULL;
+
+
+    return ret;
+  }
+}
+
+//#endif

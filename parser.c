@@ -15,7 +15,7 @@
 #include <sys/un.h>
 #include <ctype.h>
 
-#include "errors.c"
+//#include "errors.c"
 #include "queue.h"
 
 int isNumber(const char* s) {

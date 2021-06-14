@@ -1,8 +1,11 @@
+#ifndef QUEUE_H_
+#define QUEUE_H_
+
 #include <pthread.h>
 
 typedef struct _Node {
     void*           data;
-    struct Node*    next;
+    struct _Node*    next;
 } Node;
 
 /**
@@ -17,4 +20,7 @@ typedef struct _Queue {
 } Queue;
 
 void push(Queue **q, void* el);
-Queue initQueue();
+Queue* initQueue();
+void* pop(Queue **q);
+
+#endif
