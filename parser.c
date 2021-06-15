@@ -24,25 +24,33 @@ typedef struct _CodaComandi {
   int n;
 } NodoComando;
 
-void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo mette nella coda
-  NodoComando *new = malloc(sizeof(NodoComando));
-  new->cmd = cmd;
-  new->name = name;
-  new->n = n;
-  push(q, new);
-}
-
 void printQueue(Queue *q) {
   Node* tmp = q->head;
   NodoComando *no = NULL;
   while(tmp != NULL) {
     no = tmp->data;
-    fprintf(stderr, "comando %c nome %s n %d\n", no->cmd, no->name, no->n);
+    fprintf(stdout, "comando %c nome %s n %d\n", no->cmd, no->name, no->n);
     tmp = tmp->next;
   }
 }
 
-/**int isNumber(const char* s) {
+void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo mette nella coda
+  //printf("sto inserendo %c stringa %s n %d\n", cmd, name, n);
+  NodoComando *new = malloc(sizeof(NodoComando));
+  new->cmd = cmd;
+  //printf("inserisco name %s\n", name);
+  if(name != NULL) {
+    new->name = malloc(sizeof(char) * strlen(name));
+    strncpy(new->name, name, strlen(name));
+  }
+  new->n = n;
+  push(q, new);
+  //printf("\n\n\n");
+  //printQueue(*q);
+  //printf("\n\n\n");
+}
+
+int isNumber(const char* s) {
   if (s==NULL)
     return 1;
   if (strlen(s)==0)
@@ -57,9 +65,9 @@ void printQueue(Queue *q) {
     return 1;   // successo
   }
   return 0;   // non e' un numero
-}**/
+}
 
-int isNumber (char* s) {
+int isNumber1 (char* s) {
   int ok = 1;
   int len = strlen(s);
   int i = 0;
@@ -167,7 +175,7 @@ int main(int argc, char* argv[]) {
             save = NULL;
             token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
             while(token) {
-              //printf("%s\n", token);
+              //printf("inserisco %s\n", token);
               insert(&q, 'W', token, 0);
               token = strtok_r(NULL, ",", &save);
             }
@@ -196,12 +204,12 @@ int main(int argc, char* argv[]) {
             }
 
 
-            printQueue(q);
+            //printQueue(q);
             printf("\n\n\n");
             insert(&q, 'R', NULL, nfacoltativo);
             //sleep(1);
             //printf("caso R %d\n", nfacoltativo);
-            printQueue(q);
+            //printQueue(q);
             break;
         }
         case 'S':

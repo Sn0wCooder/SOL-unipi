@@ -27,7 +27,7 @@ void push(Queue **q, void* el) { //inserimento in coda in una FIFO
     (*q)->head = n;
     (*q)->tail = n;
     (*q)->len = 1;
-  } else { //inserimento in coda
+  } else { //inserimento in coda (lista non vuota)
     ((*q)->tail)->next = n;
     (*q)->tail = n;
     (*q)->len++; // = *q->len + 1;
