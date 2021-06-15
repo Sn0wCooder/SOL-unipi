@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
   //char* next, login;
   char* arg, *token, *save;
   Queue *q = malloc(sizeof(Queue));
-  while((c = getopt(argc, argv, "hf:w:W:RS")) != -1){
+  while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
         case 'h':
         fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
@@ -184,6 +184,26 @@ int main(int argc, char* argv[]) {
             //printf("\n\n\n");
             break;
           }
+          case 'r': {
+              //printf("Sto guardando gli argomenti di -l\n");
+
+              arg = malloc(sizeof(char) * strlen(optarg));
+              strncpy(arg, optarg, strlen(optarg));
+
+              save = NULL;
+              token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
+              while(token) {
+                //printf("inserisco %s\n", token);
+                insert(&q, 'r', token, 0);
+                token = strtok_r(NULL, ",", &save);
+              }
+              free(arg);
+              //printQueue(q);
+              //printf("\n\n\n");
+              break;
+            }
+
+
         case 'R': {
             //R può avere opzionalmente una opzione, che è messa quindi facoltativa e parsata a parte
             printf("guardo R\n");
@@ -212,10 +232,58 @@ int main(int argc, char* argv[]) {
             //printQueue(q);
             break;
         }
-        case 'S':
-                //sflag++;                        /* other option */
-            printf("caso S\n");
+        case 'd': {
+          insert(&q, 'd', optarg, 0);
+          //printf("filename %s\n", optarg);
+          //printQueue(q);
+          break;
+        }
+        case 't': {
+          insert(&q, 't', optarg, 0);
+          //printf("filename %s\n", optarg);
+          //printQueue(q);
+          break;
+        }
+        case 'l': {
+          insert(&q, 'l', optarg, 0);
+          //printf("filename %s\n", optarg);
+          //printQueue(q);
+          break;
+        }
+        case 'u': {
+          insert(&q, 'u', optarg, 0);
+          //printf("filename %s\n", optarg);
+          //printQueue(q);
+          break;
+        }
+        case 'c': {
+            //printf("Sto guardando gli argomenti di -l\n");
+
+            arg = malloc(sizeof(char) * strlen(optarg));
+            strncpy(arg, optarg, strlen(optarg));
+
+            save = NULL;
+            token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
+            while(token) {
+              //printf("inserisco %s\n", token);
+              insert(&q, 'c', token, 0);
+              token = strtok_r(NULL, ",", &save);
+            }
+            free(arg);
+            //printQueue(q);
+            //printf("\n\n\n");
             break;
+          }
+          case 'p': {
+            insert(&q, 'p', optarg, 0);
+            //printf("filename %s\n", optarg);
+            //printQueue(q);
+            break;
+          }
+        /*case 'S':
+                //sflag++;                        /* other option
+            printf("caso S\n");
+            break;*/
         case ':':                           /* error - missing operand */
             fprintf(stderr, "Option -%c requires an operand\n", optopt);
             break;
