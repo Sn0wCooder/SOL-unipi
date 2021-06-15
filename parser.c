@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
             //int num = atoi(&optarg[strlen(optarg) - 1]);
             insert(&q, 'w', dirname, num);
             //printf("%s %d\n", dirname, num);
-            //printQueue(q);
+            printQueue(q);
 
             free(arg);
             break;
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
               token = strtok_r(NULL, ",", &save);
             }
             free(arg);
-            printQueue(q);
+            //printQueue(q);
             //printf("\n\n\n");
             break;
           }
@@ -206,10 +206,11 @@ int main(int argc, char* argv[]) {
 
         case 'R': {
             //R può avere opzionalmente una opzione, che è messa quindi facoltativa e parsata a parte
-            printf("guardo R\n");
+            //printf("guardo R\n");
             int nfacoltativo = 0;
             char* nextstring = NULL; //la stringa seguente a -R passata da riga di comando
             if(optind != argc) { //se -R non è l'ultimo argomento passato
+              fprintf(stderr, "optind %d\n",optind);
               nextstring = strdup(argv[optind]);
             }
             //fprintf(stderr, "fin qui tutto OKKKKKK\n");
@@ -225,14 +226,15 @@ int main(int argc, char* argv[]) {
 
 
             //printQueue(q);
-            printf("\n\n\n");
+            //printf("\n\n\n");
             insert(&q, 'R', NULL, nfacoltativo);
             //sleep(1);
             //printf("caso R %d\n", nfacoltativo);
-            //printQueue(q);
+            printQueue(q);
             break;
         }
         case 'd': {
+          fprintf(stderr, "siamo alla d\n");
           insert(&q, 'd', optarg, 0);
           //printf("filename %s\n", optarg);
           //printQueue(q);
@@ -275,13 +277,15 @@ int main(int argc, char* argv[]) {
             break;
           }
           case 'p': {
+            fprintf(stderr, "p identificato\n");
             insert(&q, 'p', optarg, 0);
             //printf("filename %s\n", optarg);
             //printQueue(q);
+            printQueue(q);
             break;
           }
         /*case 'S':
-                //sflag++;                        /* other option
+                //sflag++;                        other option
             printf("caso S\n");
             break;*/
         case ':':                           /* error - missing operand */
