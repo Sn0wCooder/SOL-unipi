@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <libc.h>
+//#include <libc.h>
 #include <sys/un.h>
 #include <ctype.h>
 
