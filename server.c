@@ -20,8 +20,16 @@
 //"numeroFIle 100"
 #define MAXBUFFER 1000
 #define MAXSTRING 100
+#define CONFIGFILE "config.txt"
 #define SPAZIO "spazio"
 #define NUMEROFILE "numeroFile"
+#define SOC "sockName"
+#define WORK "numWorkers"
+
+int spazio = 0;
+int numeroFile = 0;
+int numWorkers = 0;
+char* SockName;
 
 
 int isNumber (char* s) {
@@ -36,17 +44,19 @@ int isNumber (char* s) {
   return ok;
 }
 
-int main(int argc, char* argv[]) {
+void parser(void) {
   char* a = NULL;
   int i;
   char* save;
   char* token;
-  int spazio = 0;
-  int numeroFile = 0;
-  char* buffer = malloc(sizeof(char)*MAXBUFFER);
+  //int spazio = 0;
+  //int numeroFile = 0;
+  //int numWorkers = 0;
+  //char* SockName;
+  char* buffer = malloc(sizeof(char) * MAXBUFFER);
   FILE* p;
   //fprintf(stderr,"NON abbiamo aperto il file\n");
-  if((p = fopen("config.txt", "r")) == NULL) {
+  if((p = fopen(CONFIGFILE, "r")) == NULL) {
         //gestione dell'errore
     perror("fopen");
   }
@@ -78,21 +88,52 @@ int main(int argc, char* argv[]) {
                     //fprintf(stderr,"questo è a %s\n",a);
         spazio = atoi(tmp[1]);
                     //fprintf(stderr,"questo è il risultato %d\n",spazio);
-      } else fprintf(stderr, "ERRORE %s non è un numero\n", tmp[1]);
-    }
-    if(strcmp(tmp[0], NUMEROFILE) == 0) {
-                //le due stringhe sono uguali
-      //fprintf(stderr,"questo è il risultato del numero file %d\n", isNumber(tmp[1]));
-      if(isNumber(tmp[1])) {
-        numeroFile = atoi(tmp[1]);
+      } else {
+        perror("errato config.txt (isNumber)");
+        exit(EXIT_FAILURE);
+        //fprintf(stderr, "ERRORE %s non è un numero\n", tmp[1]);
       }
     }
+    if(strcmp(tmp[0], NUMEROFILE) == 0) {
+      if(isNumber(tmp[1])) {
+        numeroFile = atoi(tmp[1]);
+      } else {
+        perror("errato config.txt (isNumber)");
+        exit(EXIT_FAILURE);
+      }
+    }
+    if(strcmp(tmp[0], SOC) == 0) {
+      SockName = malloc(sizeof(char) * strlen(tmp[1]));
+      strncpy(SockName, tmp[1], strlen(tmp[1]));
+      //numeroFile = atoi(tmp[1]);
+    }
+    if(strcmp(tmp[0], WORK) == 0) {
+      if(isNumber(tmp[1])) {
+        numWorkers = atoi(tmp[1]);
+      } else {
+        perror("errato config.txt (isNumber)");
+        exit(EXIT_FAILURE);
+      }
+    }
+
+  free(tmp[0]);
+  free(tmp[1]);
+  free(tmp);
   }
   fclose(p);
 
 
 
+  free(buffer);
+
+
   //fprintf(stderr,"abbiamo chiuso il file\n");
   fprintf(stderr,"spazio: %d\n", spazio);
   fprintf(stderr,"numeroFile: %d\n", numeroFile);
+  fprintf(stderr,"SockName: %s\n", SockName);
+  fprintf(stderr,"numWorkers: %d\n", numWorkers);
+}
+
+int main(int argc, char* argv[]) {
+  parser();
 }
