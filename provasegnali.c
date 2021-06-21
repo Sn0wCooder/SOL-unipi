@@ -8,7 +8,7 @@
 #include <string.h>
 #include <signal.h>
 
-volatile sig_atomic_t sighup;
+volatile sig_atomic_t sighup;   //variabile globale, definita così perché con i segnali non è garantito l'accesso safe alle variabili globali definite "normalmente"
 volatile sig_atomic_t sigquit;
 
 void sighandlerquit (int sig) {
@@ -36,16 +36,20 @@ int main(void) {
 
   struct sigaction sahup;
   struct sigaction saquit;
+  struct sigaction saint; //control+C
   memset(&sahup, 0, sizeof(sigaction));
   memset(&saquit, 0, sizeof(sigaction));
+  memset(&saint, 0, sizeof(sigaction));
   sahup.sa_handler = sighandlerhup;
   saquit.sa_handler = sighandlerquit;
+  saint.sa_handler = sighandlerquit;
   sigaction(SIGHUP, &sahup, NULL);
   sigaction(SIGQUIT, &saquit, NULL);
-  sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGHUP);
-  sigaddset (&mask, SIGQUIT);
-  signal(SIGINT, sighandlerhup);
+  sigaction(SIGINT, &saint, NULL);
+  //sigset_t mask;
+  //sigemptyset(&mask);
+  //sigaddset(&mask, SIGHUP);
+  //sigaddset (&mask, SIGQUIT);
+  //signal(SIGINT, sighandlerhup);
   sleep(10);
 }
