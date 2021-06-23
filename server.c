@@ -15,6 +15,8 @@
 #include <sys/un.h>
 #include <ctype.h>
 
+#include "queue.h"
+
 //"nomeInfo valore"
 //"spazio 1000"
 //"numeroFIle 100"
@@ -25,12 +27,23 @@
 #define NUMEROFILE "numeroFile"
 #define SOC "sockName"
 #define WORK "numWorkers"
+#define MAXBACKLOG 32
 
 int spazio = 0;
 int numeroFile = 0;
 int numWorkers = 0;
 char* SockName;
 
+typedef struct _file {
+  char* nome;
+  long size;
+  char* buffer; //contenuto
+  long length; //per fare la read e la write, meglio se memorizzato
+} File;
+
+void cleanup() {
+  unlink(SockName);
+}
 
 int isNumber (char* s) {
   int ok = 1;
@@ -43,6 +56,8 @@ int isNumber (char* s) {
   }
   return ok;
 }
+
+
 
 void parser(void) {
   char* a = NULL;
@@ -136,4 +151,35 @@ void parser(void) {
 
 int main(int argc, char* argv[]) {
   parser();
+
+
+  Queue *queueClient = malloc(sizeof(Queue)); //coda dei file descriptor dei client che provano a connettersi
+
+  cleanup();
+  atexit(cleanup);
+
+  int listenfd;
+
+  //SYSCALL_EXIT("socket", listenfd, socket(AF_UNIX, SOCK_STREAM, 0), "socket", "");
+  listenfd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+  struct sockaddr_un serv_addr;
+  memset(&serv_addr, '0', sizeof(serv_addr));
+  serv_addr.sun_family = AF_UNIX;
+  strncpy(serv_addr.sun_path, SockName, strlen(SockName)+1);
+
+  int notused;
+  //SYSCALL_EXIT("bind", notused, bind(listenfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr)), "bind", "");
+  notused = bind(listenfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr));
+  //SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
+  notused = listen(listenfd, MAXBACKLOG);
+
+  while(1) { //da cambiare, al massimo ci sono n client accettati, non infiniti
+    long connfd;
+    //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL, NULL), "accept", "");
+    connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+    printf("connection %ld accepted\n", connfd);
+    //spawn_thread(connfd);
+    push(&queueClient, &connfd);
+  }
 }
