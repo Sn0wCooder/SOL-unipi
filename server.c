@@ -33,6 +33,9 @@ int spazio = 0;
 int numeroFile = 0;
 int numWorkers = 0;
 char* SockName;
+Queue *queueClient;
+
+pthread_mutex_t *mutexQueueClient;
 
 typedef struct _file {
   char* nome;
@@ -40,6 +43,50 @@ typedef struct _file {
   char* buffer; //contenuto
   long length; //per fare la read e la write, meglio se memorizzato
 } File;
+
+static inline int readn(long fd, void *buf, size_t size) {
+    size_t left = size;
+    int r;
+    char *bufptr = (char*)buf;
+    while(left>0) {
+  if ((r=read((int)fd ,bufptr,left)) == -1) {
+      if (errno == EINTR) continue;
+      return -1;
+  }
+  if (r == 0) return 0;   // EOF
+        left    -= r;
+  bufptr  += r;
+    }
+    return size;
+}
+
+/** Evita scritture parziali
+ *
+ *   \retval -1   errore (errno settato)
+ *   \retval  0   se durante la scrittura la write ritorna 0
+ *   \retval  1   se la scrittura termina con successo
+ */
+static inline int writen(long fd, void *buf, size_t size) {
+    size_t left = size;
+    int r;
+    char *bufptr = (char*)buf;
+    while(left>0) {
+  if ((r=write((int)fd ,bufptr,left)) == -1) {
+      if (errno == EINTR) continue;
+      return -1;
+  }
+  if (r == 0) return 0;
+        left    -= r;
+  bufptr  += r;
+    }
+    return 1;
+}
+
+
+typedef struct msg {
+    int len;
+    char *str;
+} msg_t;
 
 void cleanup() {
   unlink(SockName);
@@ -156,13 +203,55 @@ void parser(void) {
   fprintf(stderr,"numWorkers: %d\n", numWorkers);
 }
 
+static void* threadF(void* arg) {
+  fprintf(stderr, "ciao\n");
+  while(1) {
+    pthread_mutex_lock(mutexQueueClient);
+    void* tmp = pop(&queueClient);
+    pthread_mutex_unlock(mutexQueueClient);
+
+    if(tmp == NULL)
+      continue;
+    fprintf(stderr, "ciaoyguyj\n");
+
+    long connfd = (long)tmp;
+
+    //char* letturaSocket;
+
+
+
+    msg_t str;
+    if (readn(connfd, &str.len, sizeof(int))<=0) return NULL;
+    str.str = calloc((str.len), sizeof(char));
+    if (!str.str) {
+	perror("calloc");
+	fprintf(stderr, "Memoria esaurita....\n");
+	return NULL;
+    }
+    if (readn(connfd, str.str, str.len*sizeof(char))<=0) return NULL;
+    //toup(str.str);
+    if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); return NULL;}
+    if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); return NULL;}
+    free(str.str);
+
+  }
+  return NULL;
+}
+
 int main(int argc, char* argv[]) {
   parser();
-
-  Queue *queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
-
   cleanup();
   atexit(cleanup);
+  queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
+
+
+
+  pthread_t *t = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
+  for(int i = 0; i < numWorkers; i++) {
+    pthread_create(&t[i], NULL, &threadF, NULL);
+    //sleep(1);
+  }
+
 
   int listenfd;
 
