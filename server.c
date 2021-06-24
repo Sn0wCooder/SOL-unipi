@@ -57,6 +57,13 @@ int isNumber (char* s) {
   return ok;
 }
 
+int updatemax(fd_set set, int fdmax) {
+    for(int i=(fdmax-1);i>=0;--i)
+	if (FD_ISSET(i, &set)) return i;
+    //assert(1==0);
+    return -1;
+}
+
 
 
 void parser(void) {
@@ -152,8 +159,7 @@ void parser(void) {
 int main(int argc, char* argv[]) {
   parser();
 
-
-  Queue *queueClient = malloc(sizeof(Queue)); //coda dei file descriptor dei client che provano a connettersi
+  Queue *queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
 
   cleanup();
   atexit(cleanup);
@@ -174,12 +180,53 @@ int main(int argc, char* argv[]) {
   //SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
   notused = listen(listenfd, MAXBACKLOG);
 
-  while(1) { //da cambiare, al massimo ci sono n client accettati, non infiniti
-    long connfd;
-    //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL, NULL), "accept", "");
-    connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-    printf("connection %ld accepted\n", connfd);
-    //spawn_thread(connfd);
-    push(&queueClient, &connfd);
+  fd_set set, tmpset;
+  // azzero sia il master set che il set temporaneo usato per la select
+  FD_ZERO(&set);
+  FD_ZERO(&tmpset);
+
+  // aggiungo il listener fd al master set
+  FD_SET(listenfd, &set);
+
+  // tengo traccia del file descriptor con id piu' grande
+  int fdmax = listenfd;
+  //fprintf(stderr, "ciao\n");
+  for(;;) {
+// copio il set nella variabile temporanea per la select
+    tmpset = set;
+    if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) {
+      perror("select");
+      return -1;
+    }
+// cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
+    for(int i=0; i <= fdmax; i++) {
+      fprintf(stderr, "ciao\n");
+      if (FD_ISSET(i, &tmpset)) {
+        long connfd;
+        if (i == listenfd) { // e' una nuova richiesta di connessione
+          //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
+          connfd = accept(listenfd, (struct sockaddr*)NULL ,NULL);
+          FD_SET(connfd, &set);  // aggiungo il descrittore al master set
+          if(connfd > fdmax)
+            fdmax = connfd;  // ricalcolo il massimo
+          continue;
+        }
+        connfd = i;  // e' una nuova richiesta da un client già connesso
+
+  // eseguo il comando e se c'e' un errore lo tolgo dal master set
+        //if (cmd(connfd) < 0) {
+        /*if (-1 < 0) {
+          close(connfd);
+          FD_CLR(connfd, &set);
+    // controllo se deve aggiornare il massimo
+          if (connfd == fdmax)
+            fdmax = updatemax(set, fdmax);
+        }*/
+        //fprintf(stderr, "ciao1 %ld\n", connfd);
+        push(&queueClient, &connfd);
+        //fprintf(stderr, "ciao2\n");
+        //printf("inserito\n");
+      }
+    }
   }
 }
