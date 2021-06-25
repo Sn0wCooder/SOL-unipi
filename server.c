@@ -39,6 +39,12 @@ Queue *queueClient;
 static pthread_mutex_t mutexQueueClient = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condQueueClient = PTHREAD_COND_INITIALIZER;
 
+typedef struct _comandoclient {
+  char comando;
+  char* parametro;
+  long connfd;
+} ComandoClient;
+
 typedef struct _file {
   char* nome;
   long size;
@@ -213,38 +219,37 @@ static void* threadF(void* arg) {
       pthread_cond_wait(&condQueueClient, &mutexQueueClient);
       fprintf(stderr, "sono sveglio!\n");
     }
-    void* tmp = pop(&queueClient);
+    ComandoClient* tmp = pop(&queueClient);
     //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
     pthread_mutex_unlock(&mutexQueueClient);
 
-    if(tmp == NULL) {
-      //fprintf(stderr, "è null\n");
-      continue;
-    }
+
     //fprintf(stderr, "ciaoyguyj\n");
-    long connfd = (long)tmp;
-    fprintf(stderr, "non è null, connfd %ld\n", connfd);
+    long connfd = tmp->connfd;
+    char comando = tmp->comando;
+    char* parametro = tmp->parametro;
 
-    //char* letturaSocket;
+    fprintf(stderr, "connfd %ld, comando %c, parametro %s\n", connfd, comando, parametro);
 
 
+    char* prova = "messaggio di prova";
+    int lenprova = strlen(prova);
+    if (writen(connfd, &lenprova, sizeof(int))<=0) { perror("c"); }
+    //str.str="messaggio";
+    if (writen(connfd, prova, strlen(prova)*sizeof(char))<=0) { perror("x"); }
 
-    msg_t str;
-    if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "sbagliato1\n"); return NULL; }
-    //fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
-    str.str = calloc((str.len), sizeof(char));
-    if (!str.str) {
-	     perror("calloc");
-	      fprintf(stderr, "Memoria esaurita....\n");
-	       return NULL;
-    }
-    if (readn(connfd, str.str, str.len*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); return NULL; }
-    //fprintf(stderr, "fin qui2222\n");
-    fprintf(stderr, "stringa passata %s\n", str.str);
+    //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
+
+    
+    //fprintf(stderr, "non è null, connfd %ld\n", connfd);
+
+
+    /*fprintf(stderr, "comando %c resto del file passato %s\n", comando, str.str);
     //toup(str.str);
-    if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); return NULL;}
-    if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); return NULL;}
-    free(str.str);
+    if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); }
+    //str.str="messaggio";
+    if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); }
+    free(str.str);*/
 
   }
   return NULL;
@@ -299,7 +304,7 @@ int main(int argc, char* argv[]) {
     tmpset = set;
     if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
       //in tmpset a questo punto abbiamo solo le cose effettivamente modificate
-      error("select");
+      perror("select");
       return -1;
     }
 // cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
@@ -316,6 +321,7 @@ int main(int argc, char* argv[]) {
             fdmax = connfd;  // ricalcolo il massimo
           continue;
         }
+        //ELSE
         connfd = i;  // e' una nuova richiesta da un client già connesso
 
 
@@ -337,9 +343,54 @@ int main(int argc, char* argv[]) {
             fdmax = updatemax(set, fdmax);
         }*/
         //fprintf(stderr, "ciao1 %ld\n", connfd);
-        fprintf(stderr, "connfd originale %ld\n", connfd);
-        push(&queueClient, connfd);
+
+        FD_CLR(connfd, &set);
+        msg_t str;
+        char comando;
+        if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "sbagliato1\n"); }
+        str.len = str.len - sizeof(char);
+        //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
+        if (readn(connfd, &comando, sizeof(char))<=0) { fprintf(stderr, "sbagliato4\n"); }
+
+        //fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
+        str.str = calloc((str.len), sizeof(char));
+        if (!str.str) {
+    	     perror("calloc");
+    	      fprintf(stderr, "Memoria esaurita....\n");
+    	       //return NULL;
+        }
+        if (readn(connfd, str.str, (str.len)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+        //if (readn(connfd, str.str, (str.len - sizeof(char))*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+        //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
+        //fprintf(stderr, "fin qui2222\n");
+
+        //inserisco in coda il comando letto
+        ComandoClient *cmdtmp = malloc(sizeof(ComandoClient));
+        cmdtmp->comando = comando;
+        cmdtmp->parametro = malloc(sizeof(char) * strlen(str.str));
+        cmdtmp->connfd = connfd;
+        strcpy(cmdtmp->parametro, str.str);
+
+        pthread_mutex_lock(&mutexQueueClient);
+        push(&queueClient, cmdtmp);
+        pthread_mutex_unlock(&mutexQueueClient);
         pthread_cond_signal(&condQueueClient);
+
+
+        /*fprintf(stderr, "comando %c resto del file passato %s\n", comando, str.str);
+        //toup(str.str);
+        if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); }
+        //str.str="messaggio";
+        if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); }
+        free(str.str);*/
+
+
+
+
+
+        //fprintf(stderr, "connfd originale %ld\n", connfd);
+        //push(&queueClient, connfd);
+        //pthread_cond_signal(&condQueueClient);
         //fprintf(stderr, "ciao2\n");
         //printf("inserito\n");
       }
