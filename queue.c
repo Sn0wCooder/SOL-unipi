@@ -36,7 +36,7 @@ void push(Queue **q, void* el) { //inserimento in coda in una FIFO
 
 void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
   if((*q)->head == NULL) { //la lista è già vuota
-    fprintf(stderr, "lista vuota");
+    //fprintf(stderr, "lista vuota");
     return NULL;
   } else {
     void *ret = ((*q)->head)->data;

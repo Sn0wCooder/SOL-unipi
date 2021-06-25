@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <pthread.h>
 
 #include <sys/un.h>
 #include <ctype.h>
@@ -35,7 +36,8 @@ int numWorkers = 0;
 char* SockName;
 Queue *queueClient;
 
-pthread_mutex_t *mutexQueueClient;
+static pthread_mutex_t mutexQueueClient = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condQueueClient = PTHREAD_COND_INITIALIZER;
 
 typedef struct _file {
   char* nome;
@@ -204,31 +206,37 @@ void parser(void) {
 }
 
 static void* threadF(void* arg) {
-  fprintf(stderr, "ciao\n");
+  //fprintf(stderr, "ciao\n");
   while(1) {
-    pthread_mutex_lock(mutexQueueClient);
+    pthread_mutex_lock(&mutexQueueClient);
     void* tmp = pop(&queueClient);
-    pthread_mutex_unlock(mutexQueueClient);
+    //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
+    pthread_mutex_unlock(&mutexQueueClient);
 
-    if(tmp == NULL)
+    if(tmp == NULL) {
+      //fprintf(stderr, "è null\n");
       continue;
-    fprintf(stderr, "ciaoyguyj\n");
-
+    }
+    //fprintf(stderr, "ciaoyguyj\n");
     long connfd = (long)tmp;
+    fprintf(stderr, "non è null, connfd %ld\n", connfd);
 
     //char* letturaSocket;
 
 
 
     msg_t str;
-    if (readn(connfd, &str.len, sizeof(int))<=0) return NULL;
+    if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "*bestemmia in aramaico antico*\n"); return NULL; }
+    fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
     str.str = calloc((str.len), sizeof(char));
     if (!str.str) {
-	perror("calloc");
-	fprintf(stderr, "Memoria esaurita....\n");
-	return NULL;
+	     perror("calloc");
+	      fprintf(stderr, "Memoria esaurita....\n");
+	       return NULL;
     }
-    if (readn(connfd, str.str, str.len*sizeof(char))<=0) return NULL;
+    if (readn(connfd, str.str, str.len*sizeof(char))<=0) { fprintf(stderr, "*bestemmia in aramaico antico2222*\n"); return NULL; }
+    fprintf(stderr, "fin qui2222\n");
+    fprintf(stderr, "stringa passata %s\n", str.str);
     //toup(str.str);
     if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); return NULL;}
     if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); return NULL;}
@@ -240,6 +248,8 @@ static void* threadF(void* arg) {
 
 int main(int argc, char* argv[]) {
   parser();
+
+  numWorkers = 1;
   cleanup();
   atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
@@ -288,8 +298,9 @@ int main(int argc, char* argv[]) {
       return -1;
     }
 // cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
+//fprintf(stderr, "fdmax %d\n", fdmax);
     for(int i=0; i <= fdmax; i++) {
-      fprintf(stderr, "ciao\n");
+      //fprintf(stderr, "ciao\n");
       if (FD_ISSET(i, &tmpset)) {
         long connfd;
         if (i == listenfd) { // e' una nuova richiesta di connessione
@@ -312,7 +323,8 @@ int main(int argc, char* argv[]) {
             fdmax = updatemax(set, fdmax);
         }*/
         //fprintf(stderr, "ciao1 %ld\n", connfd);
-        push(&queueClient, &connfd);
+        fprintf(stderr, "connfd originale %ld\n", connfd);
+        push(&queueClient, connfd);
         //fprintf(stderr, "ciao2\n");
         //printf("inserito\n");
       }
