@@ -209,6 +209,10 @@ static void* threadF(void* arg) {
   //fprintf(stderr, "ciao\n");
   while(1) {
     pthread_mutex_lock(&mutexQueueClient);
+    while(queueClient->len == 0) {
+      pthread_cond_wait(&condQueueClient, &mutexQueueClient);
+      fprintf(stderr, "sono sveglio!\n");
+    }
     void* tmp = pop(&queueClient);
     //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
     pthread_mutex_unlock(&mutexQueueClient);
@@ -226,16 +230,16 @@ static void* threadF(void* arg) {
 
 
     msg_t str;
-    if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "*bestemmia in aramaico antico*\n"); return NULL; }
-    fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
+    if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "sbagliato1\n"); return NULL; }
+    //fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
     str.str = calloc((str.len), sizeof(char));
     if (!str.str) {
 	     perror("calloc");
 	      fprintf(stderr, "Memoria esaurita....\n");
 	       return NULL;
     }
-    if (readn(connfd, str.str, str.len*sizeof(char))<=0) { fprintf(stderr, "*bestemmia in aramaico antico2222*\n"); return NULL; }
-    fprintf(stderr, "fin qui2222\n");
+    if (readn(connfd, str.str, str.len*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); return NULL; }
+    //fprintf(stderr, "fin qui2222\n");
     fprintf(stderr, "stringa passata %s\n", str.str);
     //toup(str.str);
     if (writen(connfd, &str.len, sizeof(int))<=0) { free(str.str); return NULL;}
@@ -279,13 +283,13 @@ int main(int argc, char* argv[]) {
   //SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
   notused = listen(listenfd, MAXBACKLOG);
 
-  fd_set set, tmpset;
+  fd_set set, tmpset; //fd che voglio aspettare
   // azzero sia il master set che il set temporaneo usato per la select
   FD_ZERO(&set);
   FD_ZERO(&tmpset);
 
   // aggiungo il listener fd al master set
-  FD_SET(listenfd, &set);
+  FD_SET(listenfd, &set); //voglio ricevere informazioni da listenfd (socket principale)
 
   // tengo traccia del file descriptor con id piu' grande
   int fdmax = listenfd;
@@ -293,15 +297,16 @@ int main(int argc, char* argv[]) {
   for(;;) {
 // copio il set nella variabile temporanea per la select
     tmpset = set;
-    if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) {
-      perror("select");
+    if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
+      //in tmpset a questo punto abbiamo solo le cose effettivamente modificate
+      error("select");
       return -1;
     }
 // cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
 //fprintf(stderr, "fdmax %d\n", fdmax);
     for(int i=0; i <= fdmax; i++) {
       //fprintf(stderr, "ciao\n");
-      if (FD_ISSET(i, &tmpset)) {
+      if (FD_ISSET(i, &tmpset)) { //ora so che qualcosa è pronto, ma non so cosa, e devo capire se l'i-esimo è pronto
         long connfd;
         if (i == listenfd) { // e' una nuova richiesta di connessione
           //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
@@ -312,6 +317,15 @@ int main(int argc, char* argv[]) {
           continue;
         }
         connfd = i;  // e' una nuova richiesta da un client già connesso
+
+
+        //READ DI CONNFD
+        //OTTENGO IL TIPO DI OPERAZIONE DAL CLIENT CONNFD
+        //PUSH(CODAOPERAZIONI, OPERAZIONE_CONNFD)
+        //FD_CLR(connfd, &set) //tolgo dalla set il fd del client finchè non ho gestito l'intera sua richiesta
+        //MANDO IL SEGNALE
+        //THREAD ESEGUE TUTTO IL COMANDO DEL CLIENT E POI RIMETTE CONNFD NEL SET
+
 
   // eseguo il comando e se c'e' un errore lo tolgo dal master set
         //if (cmd(connfd) < 0) {
@@ -325,6 +339,7 @@ int main(int argc, char* argv[]) {
         //fprintf(stderr, "ciao1 %ld\n", connfd);
         fprintf(stderr, "connfd originale %ld\n", connfd);
         push(&queueClient, connfd);
+        pthread_cond_signal(&condQueueClient);
         //fprintf(stderr, "ciao2\n");
         //printf("inserito\n");
       }
