@@ -240,7 +240,7 @@ static void* threadF(void* arg) {
 
     //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
 
-    
+
     //fprintf(stderr, "non è null, connfd %ld\n", connfd);
 
 
@@ -347,7 +347,12 @@ int main(int argc, char* argv[]) {
         FD_CLR(connfd, &set);
         msg_t str;
         char comando;
-        if (readn(connfd, &str.len, sizeof(int))<=0) { fprintf(stderr, "sbagliato1\n"); }
+        int r = readn(connfd, &str.len, sizeof(int));
+        if(r == 0) {
+          fprintf(stderr, "client disconnesso\n");
+          continue;
+        }
+        if (r<0) { fprintf(stderr, "sbagliato1\n"); }
         str.len = str.len - sizeof(char);
         //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
         if (readn(connfd, &comando, sizeof(char))<=0) { fprintf(stderr, "sbagliato4\n"); }
