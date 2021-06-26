@@ -17,12 +17,14 @@
 
 //#include "errors.c"
 #include "queue.h"
+#include "parser.h"
+#include "util.h"
 
-typedef struct _CodaComandi {
+/*typedef struct _CodaComandi {
   char cmd;
   char* name;
   int n;
-} NodoComando;
+} NodoComando;*/
 
 void printQueue(Queue *q) {
   Node* tmp = q->head;
@@ -50,7 +52,7 @@ void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo
   //printf("\n\n\n");
 }
 
-int isNumber(const char* s) {
+/*int isNumber(const char* s) {
   if (s==NULL)
     return 1;
   if (strlen(s)==0)
@@ -65,9 +67,9 @@ int isNumber(const char* s) {
     return 1;   // successo
   }
   return 0;   // non e' un numero
-}
+}*/
 
-int isNumber1 (char* s) {
+/*int isNumber1 (char* s) {
   int ok = 1;
   int len = strlen(s);
   int i = 0;
@@ -76,7 +78,7 @@ int isNumber1 (char* s) {
       ok = 0;
     i++;
   }
-  return ok;
+  return ok;*/
 
 
 
@@ -86,10 +88,10 @@ int isNumber1 (char* s) {
         {
             printf ("Entered input is not a number\n");
             exit(1);
-        }**/
-}
+        }
+}*/
 
-int main(int argc, char* argv[]) {
+Queue* parser(int argc, char* argv[]) {
   int c;
   //int index, sflags, lcount;
   //char* next, login;
@@ -296,4 +298,5 @@ int main(int argc, char* argv[]) {
             break;
       }
    }
+   return q;
 }
