@@ -36,6 +36,9 @@ int numWorkers = 0;
 char* SockName;
 Queue *queueClient;
 
+fd_set set;
+int **p;
+
 static pthread_mutex_t mutexQueueClient = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condQueueClient = PTHREAD_COND_INITIALIZER;
 
@@ -212,6 +215,8 @@ void parser(void) {
 }
 
 static void* threadF(void* arg) {
+  int* numthread = (int*)arg;
+  fprintf(stderr, "num thread %d\n", *numthread);
   //fprintf(stderr, "ciao\n");
   while(1) {
     pthread_mutex_lock(&mutexQueueClient);
@@ -239,7 +244,9 @@ static void* threadF(void* arg) {
     if (writen(connfd, prova, strlen(prova)*sizeof(char))<=0) { perror("x"); }
 
     //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
-
+    FD_SET(connfd, &set);
+    FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
+    write(p[*numthread][1], "finito", 6);
 
     //fprintf(stderr, "non è null, connfd %ld\n", connfd);
 
@@ -266,8 +273,17 @@ int main(int argc, char* argv[]) {
 
 
   pthread_t *t = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
+  p = malloc(sizeof(int*) * numWorkers); //array delle pipe
+
   for(int i = 0; i < numWorkers; i++) {
-    pthread_create(&t[i], NULL, &threadF, NULL);
+    int numthread = i;
+    //fprintf(stderr, "sto passando %d\n", i);
+    pthread_create(&t[i], NULL, &threadF, &numthread);
+    //dichiaro numWorkers pipe
+
+    int pfd[2];
+    if(pipe(pfd) == -1) { perror("pipe"); }
+    p[i] = pfd;
     //sleep(1);
   }
 
@@ -288,13 +304,18 @@ int main(int argc, char* argv[]) {
   //SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
   notused = listen(listenfd, MAXBACKLOG);
 
-  fd_set set, tmpset; //fd che voglio aspettare
+  fd_set tmpset; //fd che voglio aspettare
   // azzero sia il master set che il set temporaneo usato per la select
   FD_ZERO(&set);
   FD_ZERO(&tmpset);
 
   // aggiungo il listener fd al master set
   FD_SET(listenfd, &set); //voglio ricevere informazioni da listenfd (socket principale)
+
+  for(int i = 0; i < numWorkers; i++) {
+    FD_SET(p[i][0], &set); //p array di pipe, aggiungo tutte le pipe alla set in lettura
+    fprintf(stderr, "inserisco il connfd della pipe %d\n", p[i][0]);
+  }
 
   // tengo traccia del file descriptor con id piu' grande
   int fdmax = listenfd;
@@ -315,15 +336,26 @@ int main(int argc, char* argv[]) {
         long connfd;
         if (i == listenfd) { // e' una nuova richiesta di connessione
           //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
-          connfd = accept(listenfd, (struct sockaddr*)NULL ,NULL);
+          connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
           FD_SET(connfd, &set);  // aggiungo il descrittore al master set
           if(connfd > fdmax)
             fdmax = connfd;  // ricalcolo il massimo
           continue;
         }
         //ELSE
+        //controllo se è una delle pipe
         connfd = i;  // e' una nuova richiesta da un client già connesso
-
+        int ispipe = 0;
+        for(int j = 0; j < numWorkers; j++) {
+          fprintf(stderr, "sono nel for, connfd %ld p[j][0] %d\n", connfd, p[j][0]);
+          if(connfd == p[j][0]) {
+            fprintf(stderr, "è una pipe\n");
+            ispipe = 1;
+            FD_CLR(connfd, &set);
+          }
+        }
+        if(ispipe)
+          continue;
 
         //READ DI CONNFD
         //OTTENGO IL TIPO DI OPERAZIONE DAL CLIENT CONNFD
@@ -342,13 +374,13 @@ int main(int argc, char* argv[]) {
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
         }*/
-        //fprintf(stderr, "ciao1 %ld\n", connfd);
+        fprintf(stderr, "ho ricevuto una nuova richiesta da %ld\n", connfd);
 
         FD_CLR(connfd, &set);
         msg_t str;
         char comando;
         int r = readn(connfd, &str.len, sizeof(int));
-        if(r == 0) {
+        if(r == 0) { //il socket è vuoto
           fprintf(stderr, "client disconnesso\n");
           continue;
         }

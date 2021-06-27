@@ -114,24 +114,27 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
 
 int EseguiComandoClient(NodoComando *tmp) {
   int notused;
-  char *buffer=NULL;
+  char *buffer = NULL;
   if(tmp == NULL) return -1; //errore: tmp non può e non deve essere NULL. Abbiamo già controllato che q->len > 0
   char* towrite = malloc(sizeof(char) * (strlen(tmp->name) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
   towrite[0] = tmp->cmd;
   for(int i = 1; i <= strlen(tmp->name); i++)
     towrite[i] = tmp->name[i - 1];
   fprintf(stderr, "sto scrivendo nel socket %s\n", towrite);
-  int n = strlen(towrite) + 1;
+  int n = strlen(towrite) + 1; //terminatore
 
   SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-  SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n*sizeof(char)), "write", "");
+  SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
+
+  //fprintf(stderr, "e fin qui\n");
 
   buffer = realloc(buffer, n*sizeof(char));
   if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
 
 
-  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read","");
-  SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n*sizeof(char)), "read","");
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+  fprintf(stderr, "e fin qui\n");
+  SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
   buffer[n] = '\0';
   printf("result: %s\n", buffer);
 }
@@ -141,6 +144,8 @@ int main(int argc, char *argv[]) {
   struct timespec abstime;
 
   add_to_current_time(2, 0, &abstime);
+  //primo parametro: tempo limite (in secondi)
+  //secondo parametro: intervallo di tempo tra due connessioni (in millisecondi)
 
   /*struct sockaddr_un serv_addr;
   int sockfd;
@@ -153,7 +158,7 @@ int main(int argc, char *argv[]) {
   int notused;
   SYSCALL_EXIT("connect", notused, connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)), "connect", "");*/
   int x = openConnection(SOCKNAME, 0, abstime); //da vedere se da errore
-  fprintf(stderr, "sockfd: %ld, risultato %d\n", sockfd, x);
+  fprintf(stderr, "sockfd: %ld, risultato openconnection %d\n", sockfd, x);
 
 
   while(q->len > 0) { //finchè ci sono richieste che il parser ha visto
