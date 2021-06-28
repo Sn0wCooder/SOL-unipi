@@ -20,6 +20,7 @@
 #include "parser.h"
 
 #define SOCKNAME "ProvaSock.sk"
+#define MAXBUFFER 1000
 long sockfd;
 
 static int add_to_current_time(long sec, long nsec, struct timespec* res){
@@ -112,7 +113,7 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     return 0;
 }
 
-int EseguiComandoClient(NodoComando *tmp) {
+int EseguiComandoClientServer(NodoComando *tmp) {
   int notused;
   char *buffer = NULL;
   if(tmp == NULL) return -1; //errore: tmp non può e non deve essere NULL. Abbiamo già controllato che q->len > 0
@@ -126,17 +127,96 @@ int EseguiComandoClient(NodoComando *tmp) {
   SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
   SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
 
-  //fprintf(stderr, "e fin qui\n");
+  if(tmp->cmd == 'W') { //comando di scrittura di un file
 
-  buffer = realloc(buffer, n*sizeof(char));
-  if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
+    buffer = realloc(buffer, n*sizeof(char));
+    if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
 
 
-  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
-  fprintf(stderr, "e fin qui\n");
-  SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
-  buffer[n] = '\0';
-  printf("result: %s\n", buffer);
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+    //fprintf(stderr, "e fin qui\n");
+    SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
+    buffer[n] = '\0';
+    fprintf(stderr, "buffer %s\n", buffer);
+    if(strcmp(buffer, "file ok") == 0) {
+      fprintf(stderr, "file ok\n");
+
+      FILE * f = fopen (tmp->name, "rb");
+
+      /*struct stat info;
+      if (stat(tmp->name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
+      long size = (long)info.st_size;*/
+
+
+      long length;
+      char* bufferFile;
+      if (f) {
+        fseek (f, 0, SEEK_END);
+        length = ftell (f);
+        fseek (f, 0, SEEK_SET);
+        bufferFile = malloc (length);
+        if (bufferFile)
+        {
+          fread (bufferFile, 1, length, f);
+        }
+        fclose (f);
+      }
+
+      //fprintf(stderr, "e fin qui\n");
+      //int x = 3;
+      //int y = 4;
+      SYSCALL_EXIT("writen", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+      SYSCALL_EXIT("writen", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+
+      buffer = realloc(buffer, n*sizeof(char));
+      if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
+
+
+      SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+      //fprintf(stderr, "e fin qui\n");
+      SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
+      buffer[n] = '\0';
+      printf("result: %s\n", buffer);
+    } else {
+      fprintf(stderr, "file già esistente nel server\n");
+    }
+  }
+}
+
+void visitaRicorsiva(char* path, int *n, Queue **q) {
+  //char buf[MAXBUFFER];
+  //if (getcwd(buf, MAXBUFFER) == NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
+  //if (chdir(path) == -1) { perror("chdir2");  exit(EXIT_FAILURE); }
+
+  DIR *d;
+  struct dirent* entry;
+  if ((d = opendir(path)) == NULL) { perror("opening cwd");  exit(EXIT_FAILURE); }
+  while ((errno = 0, entry = readdir(d)) != NULL) { //per ogni cosa in quella dir
+    //struct stat info;
+    fprintf(stderr, "sto processando %s\n", entry->d_name);
+    //if (stat(file->d_name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
+    if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") && strcmp(entry->d_name, ".git") != 0) {
+      //fprintf(stderr, "%s\n", file->d_name);
+      visitaRicorsiva(entry->d_name, n, q); //entriamo ricorsivamente nella dir
+      //printf("");
+    } else if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
+
+      if(*n > 0 || *n == -1) { //prende il file
+        NodoComando *new = malloc(sizeof(NodoComando));
+        new->cmd = 'W';
+        new->name = entry->d_name;
+        //push(q, new);
+        fprintf(stderr, "file %s\n", new->name);
+      }
+      if(*n > 0)
+        (*n)--;
+      //printf("%s %lu ", file->d_name, (long)info.st_size);
+    }
+
+
+    //if (chdir(buf) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
+
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -163,9 +243,14 @@ int main(int argc, char *argv[]) {
 
   while(q->len > 0) { //finchè ci sono richieste che il parser ha visto
     NodoComando *tmp = pop(&q);
-    EseguiComandoClient(tmp);
+    if(tmp->cmd == 'w') { //non fa una richiesta al server, ma visita ricorsivamente e fa una richiesta a parte per ogni file
+      if(tmp->n == 0)
+        tmp->n = -1;
+      visitaRicorsiva(tmp->name, &(tmp->n), &q);
+    } else
+      EseguiComandoClientServer(tmp);
 
   }
-
+  close(sockfd);
   return 0;
 }

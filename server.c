@@ -34,12 +34,14 @@ int spazio = 0;
 int numeroFile = 0;
 int numWorkers = 0;
 char* SockName;
-Queue *queueClient;
+Queue *queueClient; //coda dei comandi gestiti dai thread
+Queue *queueFiles; //coda dei file memorizzati
 
 fd_set set;
 int **p;
 
 static pthread_mutex_t mutexQueueClient = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutexQueueFiles = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condQueueClient = PTHREAD_COND_INITIALIZER;
 
 typedef struct _comandoclient {
@@ -50,10 +52,10 @@ typedef struct _comandoclient {
 
 typedef struct _file {
   char* nome;
-  long size;
+  //long size;
   char* buffer; //contenuto
   long length; //per fare la read e la write, meglio se memorizzato
-} File;
+} fileRAM;
 
 static inline int readn(long fd, void *buf, size_t size) {
     size_t left = size;
@@ -214,6 +216,33 @@ void parser(void) {
   fprintf(stderr,"numWorkers: %d\n", numWorkers);
 }
 
+void printQueueFiles(Queue *q) {
+  Node* tmp = q->head;
+  fileRAM *no = NULL;
+  while(tmp != NULL) {
+    no = tmp->data;
+    fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
+    tmp = tmp->next;
+  }
+}
+
+int fileExists(Queue *q, char* nomefile) {
+  pthread_mutex_lock(&mutexQueueFiles);
+  Node* tmp = q->head;
+  fileRAM *no = NULL;
+  while(tmp != NULL) {
+    no = tmp->data;
+    //fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
+    if(strcmp(nomefile, no->nome) == 0) {
+      pthread_mutex_unlock(&mutexQueueFiles);
+      return 1;
+    }
+    tmp = tmp->next;
+  }
+  pthread_mutex_unlock(&mutexQueueFiles);
+  return 0;
+}
+
 static void* threadF(void* arg) {
   int* numthread = (int*)arg;
   fprintf(stderr, "num thread %d\n", *numthread);
@@ -235,17 +264,76 @@ static void* threadF(void* arg) {
     char* parametro = tmp->parametro;
 
     fprintf(stderr, "connfd %ld, comando %c, parametro %s\n", connfd, comando, parametro);
+    //print
+    char* risposta = malloc(sizeof(char) * MAXBUFFER);
+    int lenRisposta;
+    int notused;
+
+    //POSSIBILI COMANDI PASSATI
+    switch(comando) {
+      case 'W': { //richiesta di scrittura
+        //fprintf(stderr, "sono nello writch\n");
+        int esiste = fileExists(queueFiles, parametro);
+        if(esiste == 0) {
+          risposta = "file ok";
+
+        } else {
+          risposta = "file già esistente";
+        }
+
+        lenRisposta = strlen(risposta);
+        if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
+        if (writen(connfd, risposta, lenRisposta * sizeof(char))<=0) { perror("x"); }
+        fprintf(stderr, "ho scritto\n");
+        if(!esiste) {
+          fileRAM *newfile = malloc(sizeof(fileRAM));
+          newfile->nome = malloc(sizeof(char) * strlen(parametro));
+          strcpy(newfile->nome, parametro);
+          /*risposta = "lettoComando";
+          lenRisposta = strlen(risposta);
+          if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
+          if (writen(connfd, risposta, strlen(prova)*sizeof(char))<=0) { perror("x"); }*/
+          fprintf(stderr, "sto scrivendo\n");
+          notused = readn(connfd, &(newfile->length), sizeof(int));
+          newfile->buffer = malloc(sizeof(char) * newfile->length);
+          if (readn(connfd, newfile->buffer, (newfile->length)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+          fprintf(stderr, "length file %ld\n", newfile->length);
+          pthread_mutex_lock(&mutexQueueFiles);
+          push(&queueFiles, newfile);
+          pthread_mutex_unlock(&mutexQueueFiles);
+          risposta = "file inserito";
+
+          fprintf(stderr, "risposta %s\n", risposta);
+          printQueueFiles(queueFiles);
 
 
-    char* prova = "messaggio di prova";
+          lenRisposta = strlen(risposta);
+          if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
+          if (writen(connfd, risposta, lenRisposta * sizeof(char))<=0) { perror("x"); }
+        }
+          //fprintf(stderr, "ciao\n");
+          //notused = readn(connfd, &(newfile->size), sizeof(int));
+          //fprintf(stderr, "length %ld, file %s\n", newfile->length, newfile->buffer);
+
+        break;
+      }
+      case 'r': {
+
+        break;
+      }
+    }
+
+    //free(risposta);
+
+    /*char* prova = "messaggio di prova";
     int lenprova = strlen(prova);
     if (writen(connfd, &lenprova, sizeof(int))<=0) { perror("c"); }
     //str.str="messaggio";
-    if (writen(connfd, prova, strlen(prova)*sizeof(char))<=0) { perror("x"); }
+    if (writen(connfd, prova, strlen(prova)*sizeof(char))<=0) { perror("x"); }*/
 
     //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
     FD_SET(connfd, &set);
-    FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
+    //FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
     write(p[*numthread][1], "finito", 6);
 
     //fprintf(stderr, "non è null, connfd %ld\n", connfd);
@@ -269,7 +357,7 @@ int main(int argc, char* argv[]) {
   cleanup();
   atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
-
+  queueFiles = initQueue();
 
 
   pthread_t *t = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
@@ -311,14 +399,16 @@ int main(int argc, char* argv[]) {
 
   // aggiungo il listener fd al master set
   FD_SET(listenfd, &set); //voglio ricevere informazioni da listenfd (socket principale)
+  int fdmax = listenfd;
 
   for(int i = 0; i < numWorkers; i++) {
     FD_SET(p[i][0], &set); //p array di pipe, aggiungo tutte le pipe alla set in lettura
+    if(p[i][0] > fdmax)
+      fdmax = p[i][0];
     fprintf(stderr, "inserisco il connfd della pipe %d\n", p[i][0]);
   }
 
   // tengo traccia del file descriptor con id piu' grande
-  int fdmax = listenfd;
   //fprintf(stderr, "ciao\n");
   for(;;) {
 // copio il set nella variabile temporanea per la select
@@ -347,11 +437,14 @@ int main(int argc, char* argv[]) {
         connfd = i;  // e' una nuova richiesta da un client già connesso
         int ispipe = 0;
         for(int j = 0; j < numWorkers; j++) {
-          fprintf(stderr, "sono nel for, connfd %ld p[j][0] %d\n", connfd, p[j][0]);
+          //fprintf(stderr, "sono nel for, connfd %ld p[j][0] %d\n", connfd, p[j][0]);
           if(connfd == p[j][0]) {
             fprintf(stderr, "è una pipe\n");
+            char* buftmp;
+            read(connfd, buftmp, 6);
             ispipe = 1;
-            FD_CLR(connfd, &set);
+            //FD_CLR(connfd, &set);
+            //FD_SET(connfd, &set);  // aggiungo il descrittore al master set
           }
         }
         if(ispipe)
