@@ -200,7 +200,7 @@ Queue* parser(int argc, char* argv[]) {
                 token = strtok_r(NULL, ",", &save);
               }
               free(arg);
-              //printQueue(q);
+              printQueue(q);
               //printf("\n\n\n");
               break;
             }

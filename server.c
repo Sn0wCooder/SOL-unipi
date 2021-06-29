@@ -336,6 +336,27 @@ static void* threadF(void* arg) {
         if (writen(connfd, &res, sizeof(int))<=0) { perror("c"); }
         break;
       }
+      case 'r': {
+        fprintf(stderr, "Ho ricevuto un comando di lettura!\n");
+        pthread_mutex_lock(&mutexQueueFiles);
+        Node* esiste = fileExistsInServer(queueFiles, parametro);
+        int len;
+        if(esiste != NULL) { //file esistente nel server
+          fileRAM *filetmp = esiste->data;
+          len = filetmp->length;
+          char* buf = filetmp->buffer;
+          fprintf(stderr, "sto inserendo %d\n", len);
+          if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
+          if (writen(connfd, buf, len * sizeof(char))<=0) { perror("x"); }
+          fprintf(stderr, "file %s letto con successo dal server\n", parametro);
+          pthread_mutex_unlock(&mutexQueueFiles);
+        } else {
+          pthread_mutex_unlock(&mutexQueueFiles);
+          len = -1;
+          if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
+          fprintf(stderr, "errore, file %s NON letto dal server (non esisteva)\n", parametro);
+        }
+      }
     }
 
     //free(risposta);

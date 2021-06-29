@@ -113,11 +113,11 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     return 0;
 }
 
-int removeFile(const char* pathname) {
+int writeCMD(const char* pathname, char cmd) { //manca gestione errore
   int notused;
   char *buffer = NULL;
   char* towrite = malloc(sizeof(char) * (strlen(pathname) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
-  towrite[0] = 'c';
+  towrite[0] = cmd;
   for(int i = 1; i <= strlen(pathname); i++)
     towrite[i] = pathname[i - 1];
   fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, pathname);
@@ -126,11 +126,34 @@ int removeFile(const char* pathname) {
   SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
   SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
 
-  int res;
+}
+
+int removeFile(const char* pathname) {
+  writeCMD(pathname, 'c');
+  int res, notused;
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
   if(res != 1) { perror("sa_success"); return -1; }
   fprintf(stderr, "File %s cancellato con successo dal server\n", pathname);
   return 0;
+}
+
+int readFile(const char* pathname, void** bufs, size_t* size) {
+  writeCMD(pathname, 'r');
+  int notused;
+  int n;
+  SYSCALL_EXIT("readn1", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+  *size = n;
+  //fprintf(stderr, "la size del file che sto provando ad allocare è %d\n", n);
+  if(*size == -1) {
+    fprintf(stderr, "file %s non esiste\n", pathname);
+    return -1; //errore
+  } else {
+    char *buf = malloc(sizeof(char) * n);
+    SYSCALL_EXIT("readn2", notused, readn(sockfd, buf, n * sizeof(char)), "read", "");
+    //fprintf(stderr, "CIAOOOOOO\n");
+    fprintf(stderr, "ho letto il file %s con contenuto\n %s\n", pathname, buf);
+    return 0; //successo
+  }
 }
 
 int EseguiComandoClientServer(NodoComando *tmp) {
@@ -138,7 +161,14 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     fprintf(stderr, "file da rimuovere %s\n", tmp->name);
     removeFile(tmp->name);
     return 0;
+  } else if(tmp->cmd == 'r') {
+    fprintf(stderr, "sto eseguendo sta parte\n");
+    void* buf;
+    int size_buf; //col size_t non va
+    readFile(tmp->name, &buf, &size_buf); //manca gestione errore
+    return 0;
   }
+  //da qui solo se il comando è W
   fprintf(stderr, "nome file originale %s\n", tmp->name);
   int notused;
   char *buffer = NULL;
@@ -150,8 +180,8 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, tmp->name);
   int n = strlen(towrite) + 1; //terminatore
 
-  SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-  SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
+  SYSCALL_EXIT("writen1", notused, writen(sockfd, &n, sizeof(int)), "write", "");
+  SYSCALL_EXIT("writen2", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
 
   if(tmp->cmd == 'W') { //comando di scrittura di un file
 
@@ -191,8 +221,8 @@ int EseguiComandoClientServer(NodoComando *tmp) {
       //fprintf(stderr, "e fin qui\n");
       //int x = 3;
       //int y = 4;
-      SYSCALL_EXIT("writen", notused, writen(sockfd, &length, sizeof(int)), "write", "");
-      SYSCALL_EXIT("writen", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+      SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+      SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
 
       buffer = realloc(buffer, n*sizeof(char));
       if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
