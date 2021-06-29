@@ -51,4 +51,31 @@ void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
   }
 }
 
+int removeFromQueue(Queue **q, Node* toDelete) {
+  int ok = 0; //inizialmente errore
+  Node* tmp = (*q)->head;
+  Node* tmp_prec = NULL;
+  while(tmp != NULL) {
+    //fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
+    if(toDelete == tmp) { //nodo da cancellare
+      //pthread_mutex_unlock(&mutexQueueFiles);
+      ((*q)->len)--;
+      if(tmp_prec == NULL) { //cancellazione in testa
+        (*q)->head = tmp->next;
+        if((*q)->len == 0) //c'era un solo elemento
+          (*q)->tail = NULL;
+      } else { //cancellazione in mezzo
+        tmp_prec->next = tmp->next;
+        if(tmp->next == NULL) //ultimo elemento nella coda
+          (*q)->tail = tmp_prec;
+      }
+      free(tmp);
+      ok = 1; //successo, cancellato
+    }
+    tmp_prec = tmp;
+    tmp = tmp->next;
+  }
+  return ok;
+}
+
 //#endif

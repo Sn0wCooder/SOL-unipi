@@ -113,7 +113,33 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     return 0;
 }
 
+int removeFile(const char* pathname) {
+  int notused;
+  char *buffer = NULL;
+  char* towrite = malloc(sizeof(char) * (strlen(pathname) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
+  towrite[0] = 'c';
+  for(int i = 1; i <= strlen(pathname); i++)
+    towrite[i] = pathname[i - 1];
+  fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, pathname);
+  int n = strlen(towrite) + 1; //terminatore
+
+  SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
+  SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
+
+  int res;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
+  if(res != 1) { perror("sa_success"); return -1; }
+  fprintf(stderr, "File %s cancellato con successo dal server\n", pathname);
+  return 0;
+}
+
 int EseguiComandoClientServer(NodoComando *tmp) {
+  if(tmp->cmd == 'c') {
+    fprintf(stderr, "file da rimuovere %s\n", tmp->name);
+    removeFile(tmp->name);
+    return 0;
+  }
+  fprintf(stderr, "nome file originale %s\n", tmp->name);
   int notused;
   char *buffer = NULL;
   if(tmp == NULL) return -1; //errore: tmp non può e non deve essere NULL. Abbiamo già controllato che q->len > 0
@@ -121,7 +147,7 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   towrite[0] = tmp->cmd;
   for(int i = 1; i <= strlen(tmp->name); i++)
     towrite[i] = tmp->name[i - 1];
-  fprintf(stderr, "sto scrivendo nel socket %s\n", towrite);
+  fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, tmp->name);
   int n = strlen(towrite) + 1; //terminatore
 
   SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
@@ -183,40 +209,69 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   }
 }
 
-void visitaRicorsiva(char* path, int *n, Queue **q) {
-  //char buf[MAXBUFFER];
-  //if (getcwd(buf, MAXBUFFER) == NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
-  //if (chdir(path) == -1) { perror("chdir2");  exit(EXIT_FAILURE); }
+int openFile(const char* pathname, int flags) {
+  return 0;
+}
 
-  DIR *d;
-  struct dirent* entry;
-  if ((d = opendir(path)) == NULL) { perror("opening cwd");  exit(EXIT_FAILURE); }
-  while ((errno = 0, entry = readdir(d)) != NULL) { //per ogni cosa in quella dir
-    //struct stat info;
-    fprintf(stderr, "sto processando %s\n", entry->d_name);
-    //if (stat(file->d_name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
-    if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") && strcmp(entry->d_name, ".git") != 0) {
-      //fprintf(stderr, "%s\n", file->d_name);
-      visitaRicorsiva(entry->d_name, n, q); //entriamo ricorsivamente nella dir
-      //printf("");
-    } else if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
-
-      if(*n > 0 || *n == -1) { //prende il file
-        NodoComando *new = malloc(sizeof(NodoComando));
-        new->cmd = 'W';
-        new->name = entry->d_name;
-        //push(q, new);
-        fprintf(stderr, "file %s\n", new->name);
-      }
-      if(*n > 0)
-        (*n)--;
-      //printf("%s %lu ", file->d_name, (long)info.st_size);
-    }
-
-
-    //if (chdir(buf) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
-
+void printQueuee(Queue *q) {
+  Node* tmp = q->head;
+  NodoComando *no = NULL;
+  while(tmp != NULL) {
+    no = tmp->data;
+    fprintf(stdout, "sto nome del file è %s, len %ld\n", no->name, strlen(no->name));
+    tmp = tmp->next;
   }
+}
+
+void visitaRicorsiva(char* name, int *n, Queue **q) {
+  //fprintf(stderr, "sto visitando %s\n", name);
+  if(name == NULL)
+    return;
+  char buftmp[1024];
+  if (getcwd(buftmp, 1024)==NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
+  //mi sposto nella nuova dir
+  if (chdir(name) == -1) { perror("chdir2"); fprintf(stderr, "errno %d visitando %s\n", errno, name);  exit(EXIT_FAILURE); }
+  DIR *dir;
+  struct dirent *entry;
+
+  if (!(dir = opendir(name)))
+      return;
+
+  while ((entry = readdir(dir)) != NULL && (*n != 0)) {
+    char path[1024];
+    if (entry->d_type == DT_DIR) {
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || entry->d_name[0] == '.')
+        continue;
+        snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+        //printf("%*s[%s]\n", 0, "", entry->d_name);
+        //fprintf(stderr, "sto chiamando la funzione su %s\n", entry->d_name);
+
+        visitaRicorsiva(path, n, q);
+      } else if (entry->d_type == DT_REG) { //ogni file regolare che vede, deve decrementare n
+        if(*n > 0 || *n == -1) {
+          //snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+          char buffer[1024];
+          realpath(entry->d_name, buffer);
+          printf("%*s- %s, realpath %s\n", 0, "", entry->d_name, buffer);
+
+          NodoComando *new = malloc(sizeof(NodoComando));
+          new->cmd = 'W';
+          new->name = malloc(sizeof(char) * strlen(buffer));
+          new->n = 0;
+          strcpy(new->name, buffer);
+          push(q, new);
+          fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
+          printQueuee(*q);
+        }
+        if(*n > 0)
+          (*n)--;
+      }
+  }
+  closedir(dir);
+  if (chdir(buftmp) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
+
+
+
 }
 
 int main(int argc, char *argv[]) {
@@ -243,12 +298,14 @@ int main(int argc, char *argv[]) {
 
   while(q->len > 0) { //finchè ci sono richieste che il parser ha visto
     NodoComando *tmp = pop(&q);
+    fprintf(stderr, "FAIL NEIM %s\n", tmp->name);
     if(tmp->cmd == 'w') { //non fa una richiesta al server, ma visita ricorsivamente e fa una richiesta a parte per ogni file
       if(tmp->n == 0)
         tmp->n = -1;
       visitaRicorsiva(tmp->name, &(tmp->n), &q);
-    } else
+    } else {
       EseguiComandoClientServer(tmp);
+    }
 
   }
   close(sockfd);

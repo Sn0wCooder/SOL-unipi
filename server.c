@@ -226,21 +226,21 @@ void printQueueFiles(Queue *q) {
   }
 }
 
-int fileExists(Queue *q, char* nomefile) {
-  pthread_mutex_lock(&mutexQueueFiles);
+Node* fileExistsInServer(Queue *q, char* nomefile) {
+  //pthread_mutex_lock(&mutexQueueFiles);
   Node* tmp = q->head;
   fileRAM *no = NULL;
   while(tmp != NULL) {
     no = tmp->data;
     //fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
     if(strcmp(nomefile, no->nome) == 0) {
-      pthread_mutex_unlock(&mutexQueueFiles);
-      return 1;
+      //pthread_mutex_unlock(&mutexQueueFiles);
+      return tmp;
     }
     tmp = tmp->next;
   }
-  pthread_mutex_unlock(&mutexQueueFiles);
-  return 0;
+  //pthread_mutex_unlock(&mutexQueueFiles);
+  return NULL;
 }
 
 static void* threadF(void* arg) {
@@ -273,8 +273,10 @@ static void* threadF(void* arg) {
     switch(comando) {
       case 'W': { //richiesta di scrittura
         //fprintf(stderr, "sono nello writch\n");
-        int esiste = fileExists(queueFiles, parametro);
-        if(esiste == 0) {
+        pthread_mutex_lock(&mutexQueueFiles);
+        Node* esiste = fileExistsInServer(queueFiles, parametro);
+        pthread_mutex_unlock(&mutexQueueFiles);
+        if(esiste == NULL) {
           risposta = "file ok";
 
         } else {
@@ -285,7 +287,7 @@ static void* threadF(void* arg) {
         if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
         if (writen(connfd, risposta, lenRisposta * sizeof(char))<=0) { perror("x"); }
         fprintf(stderr, "ho scritto\n");
-        if(!esiste) {
+        if(esiste == NULL) {
           fileRAM *newfile = malloc(sizeof(fileRAM));
           newfile->nome = malloc(sizeof(char) * strlen(parametro));
           strcpy(newfile->nome, parametro);
@@ -317,8 +319,21 @@ static void* threadF(void* arg) {
 
         break;
       }
-      case 'r': {
-
+      case 'c': {
+        int res;
+        pthread_mutex_lock(&mutexQueueFiles);
+        Node* esiste = fileExistsInServer(queueFiles, parametro);
+        if(esiste != NULL) {
+          res = removeFromQueue(&queueFiles, esiste);
+          fprintf(stderr, "file %s rimosso con successo dal server\n", parametro);
+          pthread_mutex_unlock(&mutexQueueFiles);
+        } else {
+          pthread_mutex_unlock(&mutexQueueFiles);
+          fprintf(stderr, "errore, file %s NON rimosso dal server (non esisteva)\n", parametro);
+          res = 0;
+        }
+        printQueueFiles(queueFiles);
+        if (writen(connfd, &res, sizeof(int))<=0) { perror("c"); }
         break;
       }
     }
