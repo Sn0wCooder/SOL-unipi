@@ -137,7 +137,8 @@ int removeFile(const char* pathname) {
   return 0;
 }
 
-int readFile(const char* pathname, void** bufs, size_t* size) {
+int readFile(const char* pathname, void** buf, int* size) {
+  fprintf(stderr, "pathname a questo punto %s\n", pathname);
   writeCMD(pathname, 'r');
   int notused;
   int n;
@@ -148,12 +149,54 @@ int readFile(const char* pathname, void** bufs, size_t* size) {
     fprintf(stderr, "file %s non esiste\n", pathname);
     return -1; //errore
   } else {
-    char *buf = malloc(sizeof(char) * n);
-    SYSCALL_EXIT("readn2", notused, readn(sockfd, buf, n * sizeof(char)), "read", "");
+    *buf = malloc(sizeof(char) * n);
+    SYSCALL_EXIT("readn2", notused, readn(sockfd, *buf, n * sizeof(char)), "read", "");
+    fprintf(stderr, "ho letto il file %s dal server\n", pathname);
     //fprintf(stderr, "CIAOOOOOO\n");
-    fprintf(stderr, "ho letto il file %s con contenuto\n %s\n", pathname, buf);
+    //fprintf(stderr, "ho letto il file %s con contenuto\n %s\n", pathname, (char*)(*buf));
     return 0; //successo
   }
+}
+
+int writeBufToDisk(const char* dirname, char* filename, char* buf, int len) {
+  char path[1024];
+  snprintf(path, sizeof(path), "%s/%s", dirname, filename);
+  FILE *f = fopen (path, "w"); //gestire errori
+  fwrite(buf, 1, len, f);
+  fclose(f);
+  return 1;
+}
+
+int readNFiles(int n, const char* dirname) {
+  char* ntmp = malloc(sizeof(char) * 10);
+  sprintf(ntmp, "%d", n);
+  writeCMD(ntmp, 'R');
+
+  int notused;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+  int lenpathtmp;
+  char* buftmp;
+  char** arr_buf = malloc(sizeof(char*) * n); //abbiamo messo l'array perchè sennò fa casino con le read della readFile
+  for(int i = 0; i < n; i++) { //per ogni file da leggere dal server
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &lenpathtmp, sizeof(int)), "read", "");
+    buftmp = malloc(sizeof(char) * lenpathtmp);
+    SYSCALL_EXIT("readn", notused, readn(sockfd, buftmp, lenpathtmp * sizeof(char)), "read", "");
+    //fprintf(stderr, "leggo il file %s dal server\n", buftmp);
+    arr_buf[i] = buftmp;
+    //void* buffile;
+    //int sizebufffile;
+    //readFile(buftmp, &buffile, &sizebufffile);
+  }
+  fprintf(stderr, "\n\n\n STO STAMPANDO L'ARRAY \n\n\n");
+  for(int i = 0; i < n; i++) {
+    fprintf(stderr, "elemento %d: %s\n", i, arr_buf[i]);
+    void* buffile;
+    int sizebufffile;
+    readFile(arr_buf[i], &buffile, &sizebufffile);
+    writeBufToDisk(dirname, arr_buf[i], buffile, sizebufffile);
+  }
+  //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
+
 }
 
 int EseguiComandoClientServer(NodoComando *tmp) {
@@ -164,8 +207,12 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   } else if(tmp->cmd == 'r') {
     fprintf(stderr, "sto eseguendo sta parte\n");
     void* buf;
-    int size_buf; //col size_t non va
-    readFile(tmp->name, &buf, &size_buf); //manca gestione errore
+    int sizebuff; //col size_t non va
+    readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
+    return 0;
+  } else if(tmp->cmd == 'R') {
+    fprintf(stderr, "comando readNFiles con n = %d\n", tmp->n);
+    readNFiles(tmp->n, "cao");
     return 0;
   }
   //da qui solo se il comando è W

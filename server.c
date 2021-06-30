@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <pthread.h>
+#include <libgen.h>
 
 #include <sys/un.h>
 #include <ctype.h>
@@ -289,8 +290,8 @@ static void* threadF(void* arg) {
         fprintf(stderr, "ho scritto\n");
         if(esiste == NULL) {
           fileRAM *newfile = malloc(sizeof(fileRAM));
-          newfile->nome = malloc(sizeof(char) * strlen(parametro));
-          strcpy(newfile->nome, parametro);
+          newfile->nome = malloc(sizeof(char) * strlen(basename(parametro)));
+          strcpy(newfile->nome, basename(parametro));
           /*risposta = "lettoComando";
           lenRisposta = strlen(risposta);
           if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
@@ -356,6 +357,34 @@ static void* threadF(void* arg) {
           if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
           fprintf(stderr, "errore, file %s NON letto dal server (non esisteva)\n", parametro);
         }
+        break;
+      }
+      case 'R': {
+        fprintf(stderr, "Ho ricevuto un comando readNFiles con n = %d\n", atoi(parametro));
+        int numDaLeggere;
+
+        if(atoi(parametro) > queueFiles->len)
+          numDaLeggere = queueFiles->len;
+        else
+          numDaLeggere = atoi(parametro);
+        if(numDaLeggere <= 0)
+          numDaLeggere = queueFiles->len;
+        if (writen(connfd, &numDaLeggere, sizeof(int))<=0) { perror("c"); }
+        Node* nodetmp = queueFiles->head;
+        fileRAM *fileramtmp;
+        char* buftmp;
+        for(int i = 0; i < numDaLeggere; i++) {
+          fileramtmp = nodetmp->data;
+          buftmp = malloc(sizeof(char) * strlen(fileramtmp->nome));
+          strcpy(buftmp, fileramtmp->nome);
+          int buftmplen = strlen(buftmp);
+          if (writen(connfd, &buftmplen, sizeof(int))<=0) { perror("c"); }
+          if (writen(connfd, buftmp, buftmplen * sizeof(char))<=0) { perror("x"); }
+          fprintf(stderr, "sto mandando il file %s al client\n", buftmp);
+          free(buftmp);
+          nodetmp = nodetmp->next;
+        }
+        break;
       }
     }
 
