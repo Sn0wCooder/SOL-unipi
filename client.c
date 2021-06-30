@@ -114,6 +114,7 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
 }
 
 int writeCMD(const char* pathname, char cmd) { //manca gestione errore
+  //fprintf(stderr, )
   int notused;
   char *buffer = NULL;
   char* towrite = malloc(sizeof(char) * (strlen(pathname) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
@@ -220,14 +221,15 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     return 0;
   }
   //da qui solo se il comando è W
-  fprintf(stderr, "nome file originale %s\n", tmp->name);
+  fprintf(stderr, "nome file originale1 %s\n", tmp->name);
   int notused;
   char *buffer = NULL;
   if(tmp == NULL) return -1; //errore: tmp non può e non deve essere NULL. Abbiamo già controllato che q->len > 0
-  char* towrite = malloc(sizeof(char) * (strlen(tmp->name) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
+  char* towrite = malloc(sizeof(char) * (strlen(tmp->name) + 2)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
   towrite[0] = tmp->cmd;
   for(int i = 1; i <= strlen(tmp->name); i++)
     towrite[i] = tmp->name[i - 1];
+  towrite[strlen(tmp->name) + 1] = '\0';
   fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, tmp->name);
   int n = strlen(towrite) + 1; //terminatore
 
@@ -272,6 +274,8 @@ int EseguiComandoClientServer(NodoComando *tmp) {
       //fprintf(stderr, "e fin qui\n");
       //int x = 3;
       //int y = 4;
+
+      fprintf(stderr, "length file %s: %ld\n", tmp->name, length);
       SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
       SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
 
@@ -331,18 +335,19 @@ void visitaRicorsiva(char* name, int *n, Queue **q) {
       } else if (entry->d_type == DT_REG) { //ogni file regolare che vede, deve decrementare n
         if(*n > 0 || *n == -1) {
           //snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
-          char buffer[1024];
+          char *buffer = malloc(sizeof(char) * 1024);
           realpath(entry->d_name, buffer);
-          printf("%*s- %s, realpath %s\n", 0, "", entry->d_name, buffer);
-
+          printf("%*s- %s, realpath %s, strlen realpath %lu\n", 0, "", entry->d_name, buffer, strlen(buffer));
+          //buffer[strlen(buffer)] = '\0';
           NodoComando *new = malloc(sizeof(NodoComando));
           new->cmd = 'W';
-          new->name = malloc(sizeof(char) * strlen(buffer));
+          new->name = malloc(sizeof(char) * (strlen(buffer) + 1));
+          new->name[strlen(buffer)] = '\0';
           new->n = 0;
-          strcpy(new->name, buffer);
+          strncpy(new->name, buffer, strlen(buffer));
           push(q, new);
           fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
-          printQueuee(*q);
+          //printQueuee(*q);
         }
         if(*n > 0)
           (*n)--;
@@ -383,6 +388,15 @@ int main(int argc, char *argv[]) {
     if(tmp->cmd == 'w') { //non fa una richiesta al server, ma visita ricorsivamente e fa una richiesta a parte per ogni file
       if(tmp->n == 0)
         tmp->n = -1;
+
+      //trasformo le dir . in directory path complete prima di chiamare la visitaRicorsiva
+      //ho fatto questo perchè almeno la visitaRicorsiva non fa confusione con la directory '.'
+      if(strcmp(tmp->name, ".") == 0) {
+        free(tmp->name);
+        tmp->name = malloc(sizeof(char) * 1024);
+        if (getcwd(tmp->name, 1024) == NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
+      }
+
       visitaRicorsiva(tmp->name, &(tmp->n), &q);
     } else {
       EseguiComandoClientServer(tmp);

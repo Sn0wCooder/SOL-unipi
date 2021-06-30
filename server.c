@@ -234,7 +234,7 @@ Node* fileExistsInServer(Queue *q, char* nomefile) {
   while(tmp != NULL) {
     no = tmp->data;
     //fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
-    if(strcmp(nomefile, no->nome) == 0) {
+    if(strcmp(basename(nomefile), no->nome) == 0) {
       //pthread_mutex_unlock(&mutexQueueFiles);
       return tmp;
     }
@@ -290,8 +290,9 @@ static void* threadF(void* arg) {
         fprintf(stderr, "ho scritto\n");
         if(esiste == NULL) {
           fileRAM *newfile = malloc(sizeof(fileRAM));
-          newfile->nome = malloc(sizeof(char) * strlen(basename(parametro)));
+          newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1));
           strcpy(newfile->nome, basename(parametro));
+          newfile->nome[strlen(basename(parametro))] = '\0';
           /*risposta = "lettoComando";
           lenRisposta = strlen(risposta);
           if (writen(connfd, &lenRisposta, sizeof(int))<=0) { perror("c"); }
@@ -562,9 +563,11 @@ int main(int argc, char* argv[]) {
         //inserisco in coda il comando letto
         ComandoClient *cmdtmp = malloc(sizeof(ComandoClient));
         cmdtmp->comando = comando;
-        cmdtmp->parametro = malloc(sizeof(char) * strlen(str.str));
+        cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1);
         cmdtmp->connfd = connfd;
         strcpy(cmdtmp->parametro, str.str);
+        cmdtmp->parametro[strlen(str.str)] = '\0';
+        fprintf(stderr, "il parametro è %s\n", cmdtmp->parametro);
 
         pthread_mutex_lock(&mutexQueueClient);
         push(&queueClient, cmdtmp);

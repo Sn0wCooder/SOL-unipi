@@ -1,3 +1,2 @@
 il size_t sizebuff nel client non va con le richieste di scrittura (-w)
 parser non funziona nel client
-quando scrivo dei file aggiunge dei caratteri alla fine del file tra la push e la pop
