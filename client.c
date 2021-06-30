@@ -147,6 +147,8 @@ int readFile(const char* pathname, void** buf, int* size) {
   //fprintf(stderr, "la size del file che sto provando ad allocare è %d\n", n);
   if(*size == -1) {
     fprintf(stderr, "file %s non esiste\n", pathname);
+    *buf = NULL;
+    *size = 0;
     return -1; //errore
   } else {
     *buf = malloc(sizeof(char) * n);
@@ -209,10 +211,12 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     void* buf;
     int sizebuff; //col size_t non va
     readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
+    if(savefiledir != NULL && buf != NULL)
+      writeBufToDisk(savefiledir, tmp->name, buf, sizebuff);
     return 0;
   } else if(tmp->cmd == 'R') {
     fprintf(stderr, "comando readNFiles con n = %d\n", tmp->n);
-    readNFiles(tmp->n, "cao");
+    readNFiles(tmp->n, savefiledir);
     return 0;
   }
   //da qui solo se il comando è W

@@ -95,12 +95,16 @@ Queue* parser(int argc, char* argv[]) {
   int c;
   //int index, sflags, lcount;
   //char* next, login;
+  savefiledir = NULL;
+  timems = 0;
+  verbose = 0;
+
   char* arg, *token, *save;
   Queue *q = malloc(sizeof(Queue));
   while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
         case 'h':
-        fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+        fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
                   "-h                 : stampa la lista delle opzioni",
                   "-f filename        : specifica il filename del socket a cui deve connettersi il client",
                   "-w dirname[,n=0]   : manda i file dalla cartella 'dirname' al server",
@@ -109,8 +113,8 @@ Queue* parser(int argc, char* argv[]) {
                   "-R [n=0]           : leggi 'n' file presenti sul server",
                   "-d dirname         : specifica la cartella dove scrivere i file letti con -r e -R",
                   "-t time            : tempo in millisecondi per fare due richieste consecutive al server",
-                  "-l file1[,file2]   : lista di file a cui acquisire la mutua esclusione",
-                  "-u file1[,file2]   : lista di file a cui rilasciare la mutua esclusione",
+                  //"-l file1[,file2]   : lista di file a cui acquisire la mutua esclusione",
+                  //"-u file1[,file2]   : lista di file a cui rilasciare la mutua esclusione",
                   "-c file1[,file2]   : lista di file da eliminare dal server, se presenti",
                   "-p                 : modalità verbosa per nerd"
           );
@@ -200,6 +204,7 @@ Queue* parser(int argc, char* argv[]) {
                 token = strtok_r(NULL, ",", &save);
               }
               free(arg);
+              seenr = 1;
               printQueue(q);
               //printf("\n\n\n");
               break;
@@ -229,6 +234,7 @@ Queue* parser(int argc, char* argv[]) {
 
             //printQueue(q);
             //printf("\n\n\n");
+            seenR = 1;
             insert(&q, 'R', NULL, nfacoltativo);
             //sleep(1);
             //printf("caso R %d\n", nfacoltativo);
@@ -236,19 +242,22 @@ Queue* parser(int argc, char* argv[]) {
             break;
         }
         case 'd': {
-          fprintf(stderr, "siamo alla d\n");
-          insert(&q, 'd', optarg, 0);
+          //fprintf(stderr, "siamo alla d\n");
+          //insert(&q, 'd', optarg, 0);
+          savefiledir = malloc(sizeof(char) * strlen(optarg));
+          strcpy(savefiledir, optarg);
           //printf("filename %s\n", optarg);
           //printQueue(q);
           break;
         }
         case 't': {
-          insert(&q, 't', optarg, 0);
+          //insert(&q, 't', optarg, 0);
           //printf("filename %s\n", optarg);
+          timems = atoi(optarg);
           //printQueue(q);
           break;
         }
-        case 'l': {
+        /*case 'l': {
           insert(&q, 'l', optarg, 0);
           //printf("filename %s\n", optarg);
           //printQueue(q);
@@ -259,7 +268,7 @@ Queue* parser(int argc, char* argv[]) {
           //printf("filename %s\n", optarg);
           //printQueue(q);
           break;
-        }
+        }*/
         case 'c': {
             //printf("Sto guardando gli argomenti di -l\n");
 
@@ -279,11 +288,12 @@ Queue* parser(int argc, char* argv[]) {
             break;
           }
           case 'p': {
-            fprintf(stderr, "p identificato\n");
-            insert(&q, 'p', optarg, 0);
+            //fprintf(stderr, "p identificato\n");
+            //insert(&q, 'p', optarg, 0);
             //printf("filename %s\n", optarg);
             //printQueue(q);
-            printQueue(q);
+            verbose = 1;
+            //printQueue(q);
             break;
           }
         /*case 'S':
@@ -297,6 +307,10 @@ Queue* parser(int argc, char* argv[]) {
             fprintf(stderr,"Unrecognized option: -%c\n", optopt);
             break;
       }
+   }
+   if(savefiledir != NULL && seenr == 0 && seenR == 0) {
+     fprintf(stderr, "errore, l'opzione -d va usata insieme a -r o a -R\n");
+     exit(EXIT_FAILURE);
    }
    return q;
 }

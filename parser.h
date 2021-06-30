@@ -8,3 +8,9 @@ typedef struct _CodaComandi {
 void printQueue(Queue *q);
 void insert(Queue **q, char cmd, char* name, int n);
 Queue* parser(int argc, char* argv[]);
+
+char* savefiledir;
+int seenr;
+int seenR;
+int timems;
+int verbose;
