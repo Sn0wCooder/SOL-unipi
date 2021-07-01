@@ -414,11 +414,14 @@ int main(int argc, char *argv[]) {
   int notused;
   SYSCALL_EXIT("connect", notused, connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)), "connect", "");*/
   int x = openConnection(SOCKNAME, 0, abstime); //da vedere se da errore
+  abstime.tv_sec = timems / 1000;
+  abstime.tv_nsec = (timems % 1000) * 1000000;
   fprintf(stderr, "sockfd: %ld, risultato openconnection %d\n", sockfd, x);
 
 
   while(q->len > 0) { //finchè ci sono richieste che il parser ha visto
     NodoComando *tmp = pop(&q);
+    nanosleep(&abstime, NULL);
     fprintf(stderr, "FAIL NEIM %s\n", tmp->name);
     if(tmp->cmd == 'w') { //non fa una richiesta al server, ma visita ricorsivamente e fa una richiesta a parte per ogni file
       if(tmp->n == 0)
