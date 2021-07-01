@@ -38,6 +38,8 @@ char* SockName;
 Queue *queueClient; //coda dei comandi gestiti dai thread
 Queue *queueFiles; //coda dei file memorizzati
 
+int spazioOccupato = 0;
+
 fd_set set;
 int **p;
 
@@ -209,7 +211,10 @@ void parser(void) {
 
   free(buffer);
 
-
+  if(spazio <= 0 || numeroFile <= 0 || sockName == NULL || numWorkers <= 0) {
+    fprintf(stderr, "config.txt errato\n");
+    exit(EXIT_FAILURE);
+  }
   //fprintf(stderr,"abbiamo chiuso il file\n");
   fprintf(stderr,"spazio: %d\n", spazio);
   fprintf(stderr,"numeroFile: %d\n", numeroFile);
@@ -299,6 +304,27 @@ static void* threadF(void* arg) {
           if (writen(connfd, risposta, strlen(prova)*sizeof(char))<=0) { perror("x"); }*/
           fprintf(stderr, "sto scrivendo\n");
           notused = readn(connfd, &(newfile->length), sizeof(int));
+          int cista = 1; //ci sta nel server fino a prova contraria
+          if(newfile->length > spazio) { //non lo memorizza proprio
+            fprintf(stderr, "Il file %s è troppo grande (%ld) e non sta materialmente nel server (capienza massima %d)\n", newfile->nome, newfile->length, spazio);
+            //vanno fatte delle FREE
+            //vado a scrivere nel socket che il file non ci sta
+            cista = 0;
+          }
+          if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
+          if(!cista)
+            continue;
+          while(spazioOccupato + newfile->length > spazio || queueFiles->len + 1 > numeroFile) { //deve iniziare ad espellere file
+            fprintf(stderr, "il server è pieno\n");
+            fileRAM *fileramtmptrash = pop(&queueFiles);
+            if(fileramtmptrash == NULL || fileramtmptrash->nome == NULL)
+              fprintf(stderr, "è null\n");
+             else fprintf(stderr, "Sto espellendo il file %s dal server\n", fileramtmptrash->nome);
+
+            spazioOccupato-=fileramtmptrash->length;
+            //vanno fatte FREE
+          }
+          spazioOccupato+=newfile->length;
           newfile->buffer = malloc(sizeof(char) * newfile->length);
           if (readn(connfd, newfile->buffer, (newfile->length)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
           fprintf(stderr, "length file %ld\n", newfile->length);
@@ -325,7 +351,9 @@ static void* threadF(void* arg) {
         int res;
         pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
-        if(esiste != NULL) {
+        if(esiste != NULL) { //file esiste nel server
+          fileRAM *tmpfileramtrash = esiste->data;
+          spazioOccupato-= tmpfileramtrash->length;
           res = removeFromQueue(&queueFiles, esiste);
           fprintf(stderr, "file %s rimosso con successo dal server\n", parametro);
           pthread_mutex_unlock(&mutexQueueFiles);

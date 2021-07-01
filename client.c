@@ -277,6 +277,13 @@ int writeFile(const char* pathname) {
 
     fprintf(stderr, "length file %s: %ld\n", pathname, length);
     SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+    int cista;
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
+    if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
+      fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
+      //vanno fatte delle FREE
+      return -1;
+    }
     SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
 
     buffer = realloc(buffer, n*sizeof(char));
