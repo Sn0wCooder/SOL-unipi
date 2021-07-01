@@ -113,14 +113,38 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     return 0;
 }
 
+int closeConnection(const char* sockname){
+  if(sockname == NULL){
+    errno = EINVAL;
+    return -1;
+  }
+    // wrong socket name
+  if(strcmp(sockname, SOCKNAME) != 0){
+        // this socket is not connected
+    errno = ENOTCONN;
+    return -1;
+  }
+
+  if( close(sockfd) == -1 ){
+    sockfd = -1;
+    return -1;
+  }
+
+  fprintf(stderr, "Connessione chiusa\n");
+
+  sockfd = -1;
+  return 0;
+}
+
 int writeCMD(const char* pathname, char cmd) { //manca gestione errore
   //fprintf(stderr, )
   int notused;
   char *buffer = NULL;
-  char* towrite = malloc(sizeof(char) * (strlen(pathname) + 1)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
+  char* towrite = malloc(sizeof(char) * (strlen(pathname) + 2)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
   towrite[0] = cmd;
   for(int i = 1; i <= strlen(pathname); i++)
     towrite[i] = pathname[i - 1];
+  towrite[strlen(pathname) + 1] = '\0';
   fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, pathname);
   int n = strlen(towrite) + 1; //terminatore
 
@@ -161,16 +185,18 @@ int readFile(const char* pathname, void** buf, int* size) {
   }
 }
 
-int writeBufToDisk(const char* dirname, char* filename, char* buf, int len) {
-  char path[1024];
-  snprintf(path, sizeof(path), "%s/%s", dirname, filename);
-  FILE *f = fopen (path, "w"); //gestire errori
-  fwrite(buf, 1, len, f);
+//int writeBufToDisk(const char* dirname, char* filename, char* buf, int len) {
+int appendToFile(const char* pathname, void* buf, int size) {
+  //char path[1024];
+  //snprintf(path, sizeof(path), "%s/%s", dirname, filename);
+  FILE *f = fopen (pathname, "a"); //gestire errori
+  fwrite(buf, 1, size, f);
   fclose(f);
   return 1;
 }
 
 int readNFiles(int n, const char* dirname) {
+  //DA FARE: CONTROLLARE SE DIRNAME = NULL, NEL CASO DARE ERRORE
   char* ntmp = malloc(sizeof(char) * 10);
   sprintf(ntmp, "%d", n);
   writeCMD(ntmp, 'R');
@@ -196,10 +222,75 @@ int readNFiles(int n, const char* dirname) {
     void* buffile;
     int sizebufffile;
     readFile(arr_buf[i], &buffile, &sizebufffile);
-    writeBufToDisk(dirname, arr_buf[i], buffile, sizebufffile);
+    char path[1024];
+    fprintf(stderr, "fin qui ci siamo\n");
+    snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]);
+    fprintf(stderr, "fin qui ci siamo, dirname %s, path %s\n", dirname, path);
+
+    appendToFile(path, buffile, sizebufffile);
   }
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
 
+}
+
+int writeFile(const char* pathname) {
+  int notused, n;
+  writeCMD(pathname, 'W');
+  char *buffer = NULL;
+  n = strlen(pathname) + 2;
+  buffer = realloc(buffer, n*sizeof(char));
+  if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
+
+
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+    //fprintf(stderr, "e fin qui\n");
+  SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
+  buffer[n] = '\0';
+  fprintf(stderr, "buffer %s\n", buffer);
+  if(strcmp(buffer, "file ok") == 0) {
+    fprintf(stderr, "file ok\n");
+
+    FILE * f = fopen (pathname, "rb");
+
+      /*struct stat info;
+      if (stat(tmp->name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
+      long size = (long)info.st_size;*/
+
+
+    long length;
+    char* bufferFile;
+    if (f) {
+      fseek (f, 0, SEEK_END);
+      length = ftell (f);
+      fseek (f, 0, SEEK_SET);
+      bufferFile = malloc (length);
+      if (bufferFile)
+      {
+        fread (bufferFile, 1, length, f);
+      }
+      fclose (f);
+    }
+
+      //fprintf(stderr, "e fin qui\n");
+      //int x = 3;
+      //int y = 4;
+
+    fprintf(stderr, "length file %s: %ld\n", pathname, length);
+    SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+    SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+
+    buffer = realloc(buffer, n*sizeof(char));
+    if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
+
+
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
+      //fprintf(stderr, "e fin qui\n");
+    SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
+    buffer[n] = '\0';
+    printf("result: %s\n", buffer);
+  } else {
+    fprintf(stderr, "file già esistente nel server\n");
+  }
 }
 
 int EseguiComandoClientServer(NodoComando *tmp) {
@@ -212,86 +303,23 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     void* buf;
     int sizebuff; //col size_t non va
     readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
-    if(savefiledir != NULL && buf != NULL)
-      writeBufToDisk(savefiledir, tmp->name, buf, sizebuff);
+    if(savefiledir != NULL && buf != NULL) {
+      char path[1024];
+      snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name);
+      //fprintf(stderr, "sto andando a scrivere il file %s in %s\n", tmp->name, path);
+      appendToFile(path, buf, sizebuff);
+    }
     return 0;
   } else if(tmp->cmd == 'R') {
     fprintf(stderr, "comando readNFiles con n = %d\n", tmp->n);
     readNFiles(tmp->n, savefiledir);
     return 0;
+  } else if(tmp->cmd == 'W') {
+    fprintf(stderr, "comando W con parametro %s\n", tmp->name);
+    writeFile(tmp->name);
   }
   //da qui solo se il comando è W
-  fprintf(stderr, "nome file originale1 %s\n", tmp->name);
-  int notused;
-  char *buffer = NULL;
-  if(tmp == NULL) return -1; //errore: tmp non può e non deve essere NULL. Abbiamo già controllato che q->len > 0
-  char* towrite = malloc(sizeof(char) * (strlen(tmp->name) + 2)); //alloco la stringa da scrivere, che sarà del tipo "rfile"
-  towrite[0] = tmp->cmd;
-  for(int i = 1; i <= strlen(tmp->name); i++)
-    towrite[i] = tmp->name[i - 1];
-  towrite[strlen(tmp->name) + 1] = '\0';
-  fprintf(stderr, "sto scrivendo nel socket %s, nome file originale %s\n", towrite, tmp->name);
-  int n = strlen(towrite) + 1; //terminatore
 
-  SYSCALL_EXIT("writen1", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-  SYSCALL_EXIT("writen2", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
-
-  if(tmp->cmd == 'W') { //comando di scrittura di un file
-
-    buffer = realloc(buffer, n*sizeof(char));
-    if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
-
-
-    SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
-    //fprintf(stderr, "e fin qui\n");
-    SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
-    buffer[n] = '\0';
-    fprintf(stderr, "buffer %s\n", buffer);
-    if(strcmp(buffer, "file ok") == 0) {
-      fprintf(stderr, "file ok\n");
-
-      FILE * f = fopen (tmp->name, "rb");
-
-      /*struct stat info;
-      if (stat(tmp->name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
-      long size = (long)info.st_size;*/
-
-
-      long length;
-      char* bufferFile;
-      if (f) {
-        fseek (f, 0, SEEK_END);
-        length = ftell (f);
-        fseek (f, 0, SEEK_SET);
-        bufferFile = malloc (length);
-        if (bufferFile)
-        {
-          fread (bufferFile, 1, length, f);
-        }
-        fclose (f);
-      }
-
-      //fprintf(stderr, "e fin qui\n");
-      //int x = 3;
-      //int y = 4;
-
-      fprintf(stderr, "length file %s: %ld\n", tmp->name, length);
-      SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
-      SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
-
-      buffer = realloc(buffer, n*sizeof(char));
-      if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
-
-
-      SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
-      //fprintf(stderr, "e fin qui\n");
-      SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
-      buffer[n] = '\0';
-      printf("result: %s\n", buffer);
-    } else {
-      fprintf(stderr, "file già esistente nel server\n");
-    }
-  }
 }
 
 int openFile(const char* pathname, int flags) {
@@ -403,6 +431,6 @@ int main(int argc, char *argv[]) {
     }
 
   }
-  close(sockfd);
+  closeConnection(SOCKNAME);
   return 0;
 }
