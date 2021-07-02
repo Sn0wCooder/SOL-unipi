@@ -52,7 +52,7 @@ void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
 }
 
 int removeFromQueue(Queue **q, Node* toDelete) {
-  int ok = 0; //inizialmente errore
+  int ok = -1; //inizialmente errore
   Node* tmp = (*q)->head;
   Node* tmp_prec = NULL;
   while(tmp != NULL) {
@@ -70,7 +70,7 @@ int removeFromQueue(Queue **q, Node* toDelete) {
           (*q)->tail = tmp_prec;
       }
       free(tmp);
-      ok = 1; //successo, cancellato
+      ok = 0; //successo, cancellato
     }
     tmp_prec = tmp;
     tmp = tmp->next;

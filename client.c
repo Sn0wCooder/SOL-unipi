@@ -153,17 +153,33 @@ int writeCMD(const char* pathname, char cmd) { //manca gestione errore
 
 }
 
+int openFile(const char* pathname, int flags) {
+  if((flags != 0 && flags != 1) || pathname == NULL) { // i flag passate non sono valide (0 -> open | 1 -> open & create)
+    errno = EINVAL;
+    return -1;
+  }
+  writeCMD(pathname, 'e');
+  int res, notused;
+  SYSCALL_EXIT("writen", notused, writen(sockfd, &flags, sizeof(int)), "write", "");
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
+  if(res == 0)
+    fprintf(stderr, "il file %s esiste\n", pathname);
+  else
+    fprintf(stderr, "il file %s non esiste\n", pathname);
+  return res;
+}
+
 int removeFile(const char* pathname) {
   writeCMD(pathname, 'c');
   int res, notused;
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
-  if(res != 1) { perror("sa_success"); return -1; }
+  if(res != 0) { perror("sa_success"); return -1; }
   fprintf(stderr, "File %s cancellato con successo dal server\n", pathname);
   return 0;
 }
 
 int readFile(const char* pathname, void** buf, int* size) {
-  fprintf(stderr, "pathname a questo punto %s\n", pathname);
+  //fprintf(stderr, "pathname a questo punto %s\n", pathname);
   writeCMD(pathname, 'r');
   int notused;
   int n;
@@ -221,6 +237,7 @@ int readNFiles(int n, const char* dirname) {
     fprintf(stderr, "elemento %d: %s\n", i, arr_buf[i]);
     void* buffile;
     int sizebufffile;
+    openFile(arr_buf[i], 0);
     readFile(arr_buf[i], &buffile, &sizebufffile);
     char path[1024];
     fprintf(stderr, "fin qui ci siamo\n");
@@ -242,71 +259,47 @@ int writeFile(const char* pathname) {
   if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
 
 
-  SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
-    //fprintf(stderr, "e fin qui\n");
-  SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
-  buffer[n] = '\0';
-  fprintf(stderr, "buffer %s\n", buffer);
-  if(strcmp(buffer, "file ok") == 0) {
-    fprintf(stderr, "file ok\n");
-
-    FILE * f = fopen (pathname, "rb");
-
-      /*struct stat info;
-      if (stat(tmp->name, &info) == -1){ perror("stat"); exit(EXIT_FAILURE); }
-      long size = (long)info.st_size;*/
-
-
-    long length;
-    char* bufferFile;
-    if (f) {
-      fseek (f, 0, SEEK_END);
-      length = ftell (f);
-      fseek (f, 0, SEEK_SET);
-      bufferFile = malloc (length);
-      if (bufferFile)
-      {
-        fread (bufferFile, 1, length, f);
-      }
-      fclose (f);
+  FILE * f = fopen (pathname, "rb");
+  long length;
+  char* bufferFile;
+  if (f) {
+    fseek (f, 0, SEEK_END);
+    length = ftell (f);
+    fseek (f, 0, SEEK_SET);
+    bufferFile = malloc (length);
+    if (bufferFile) {
+      fread (bufferFile, 1, length, f);
     }
-
-      //fprintf(stderr, "e fin qui\n");
-      //int x = 3;
-      //int y = 4;
-
-    fprintf(stderr, "length file %s: %ld\n", pathname, length);
-    SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
-    int cista;
-    SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
-    if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
-      fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
-      //vanno fatte delle FREE
-      return -1;
-    }
-    SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
-
-    buffer = realloc(buffer, n*sizeof(char));
-    if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
-
-
-    SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
-      //fprintf(stderr, "e fin qui\n");
-    SYSCALL_EXIT("readn", notused, readn(sockfd, buffer, n * sizeof(char)), "read", "");
-    buffer[n] = '\0';
-    printf("result: %s\n", buffer);
-  } else {
-    fprintf(stderr, "file già esistente nel server\n");
+    fclose (f);
   }
+
+  fprintf(stderr, "length file %s: %ld\n", pathname, length);
+  SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+  int cista;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
+  if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
+    fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
+      //vanno fatte delle FREE
+    return -1;
+  }
+  SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+
+  int risposta;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
+  printf("result: %d\n", risposta);
+
 }
 
 int EseguiComandoClientServer(NodoComando *tmp) {
   if(tmp->cmd == 'c') {
     fprintf(stderr, "file da rimuovere %s\n", tmp->name);
+    openFile(tmp->name, 0);
     removeFile(tmp->name);
     return 0;
   } else if(tmp->cmd == 'r') {
-    fprintf(stderr, "sto eseguendo sta parte\n");
+    fprintf(stderr, "sto eseguendo un comando di lettura del file %s\n", tmp->name);
+    openFile(tmp->name, 0);
+
     void* buf;
     int sizebuff; //col size_t non va
     readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
@@ -323,14 +316,11 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     return 0;
   } else if(tmp->cmd == 'W') {
     fprintf(stderr, "comando W con parametro %s\n", tmp->name);
+    openFile(tmp->name, 1); //flag: apri e crea
     writeFile(tmp->name);
   }
   //da qui solo se il comando è W
 
-}
-
-int openFile(const char* pathname, int flags) {
-  return 0;
 }
 
 void printQueuee(Queue *q) {
@@ -391,8 +381,6 @@ void visitaRicorsiva(char* name, int *n, Queue **q) {
   closedir(dir);
   if (chdir(buftmp) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
 
-
-
 }
 
 int main(int argc, char *argv[]) {
@@ -441,6 +429,7 @@ int main(int argc, char *argv[]) {
     }
 
   }
+  //openFile("client.cs", 0);
   closeConnection(SOCKNAME);
   return 0;
 }
