@@ -1,4 +1,4 @@
 spazio 2000000
-numeroFile 2000
+numeroFile 5000
 numWorkers 19
 sockName ProvaSock.sk

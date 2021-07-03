@@ -163,9 +163,9 @@ int openFile(const char* pathname, int flags) {
   SYSCALL_EXIT("writen", notused, writen(sockfd, &flags, sizeof(int)), "write", "");
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
   if(res == 0)
-    fprintf(stderr, "il file %s esiste\n", pathname);
+    fprintf(stderr, "il file %s openFile successo\n", pathname);
   else
-    fprintf(stderr, "il file %s non esiste\n", pathname);
+    fprintf(stderr, "il file %s openFile fallita, res %d\n", pathname, res);
   return res;
 }
 
@@ -316,8 +316,8 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     return 0;
   } else if(tmp->cmd == 'W') {
     fprintf(stderr, "comando W con parametro %s\n", tmp->name);
-    openFile(tmp->name, 1); //flag: apri e crea
-    writeFile(tmp->name);
+    if(openFile(tmp->name, 1) != -1) //flag: apri e crea
+      writeFile(tmp->name);
   }
   //da qui solo se il comando è W
 
