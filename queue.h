@@ -22,6 +22,8 @@ typedef struct _Queue {
 void push(Queue **q, void* el);
 Queue* initQueue();
 void* pop(Queue **q);
+void* pop2(Queue **q);
+void* returnFirstEl(Queue *q);
 int removeFromQueue(Queue **q, Node* toDelete);
 
 #endif

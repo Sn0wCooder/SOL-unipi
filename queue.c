@@ -39,6 +39,16 @@ void push(Queue **q, void* el) { //inserimento in coda in una FIFO
   }
 }
 
+void* returnFirstEl(Queue *q) {
+  if(q->head == NULL) { //la lista è già vuota
+    //fprintf(stderr, "lista vuota");
+    return NULL;
+  } else {
+    void *ret = (q->head)->data;
+    return ret;
+  }
+}
+
 void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
   if((*q)->head == NULL) { //la lista è già vuota
     //fprintf(stderr, "lista vuota");
@@ -52,6 +62,21 @@ void* pop(Queue **q) { //restituisce la testa e la rimuove dalla queue
       (*q)->tail = NULL;
 
     free(tmp);
+    return ret;
+  }
+}
+
+void* pop2(Queue **q) { //restituisce il secondo elemento e lo rimuove dalla queue
+  if((*q)->head == NULL) { //la lista è già vuota
+    //fprintf(stderr, "lista vuota");
+    return NULL;
+  } else {
+    Node* firstel = (*q)->head;
+    Node *secondel = firstel->next;
+    void* ret = secondel->data;
+    firstel->next = secondel->next;
+    (*q)->len--;
+    free(secondel);
     return ret;
   }
 }

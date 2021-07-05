@@ -296,29 +296,53 @@ static void* threadF(void* arg) {
           if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
 
           if(ris != -1) {
-            notused = readn(connfd, &(newfile->length), sizeof(int));
+            int lentmp;
+            notused = readn(connfd, &lentmp, sizeof(int));
             int cista = 1; //ci sta nel server fino a prova contraria
-            if(newfile->length > spazio) { //non lo memorizza proprio
+            if(lentmp > spazio) { //non lo memorizza proprio
               fprintf(stderr, "Il file %s è troppo grande (%ld) e non sta materialmente nel server (capienza massima %d)\n", newfile->nome, newfile->length, spazio);
                 //vanno fatte delle FREE
                 //vado a scrivere nel socket che il file non ci sta
-                removeFromQueue(&queueFiles, esiste);
+              removeFromQueue(&queueFiles, esiste);
               cista = 0;
             }
             if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
             if(cista) {
               //fprintf(stderr, "UEEEEEEE\n");
-              while(spazioOccupato + newfile->length > spazio) { //deve iniziare ad espellere file
+              fileRAM *fileramtmptrash;
+              while(spazioOccupato + lentmp > spazio) { //deve iniziare ad espellere file
                 fprintf(stderr, "il server è pieno (di spazio)\n");
-                fileRAM *fileramtmptrash = pop(&queueFiles);
-                fprintf(stderr, "Sto espellendo il file %s dal server\n", fileramtmptrash->nome);
+                fileRAM *firstel = returnFirstEl(queueFiles);
+                if(newfile != firstel) { //non rimuove il primo elemento perchè è proprio quello che dobbiamo inserire
+                  fileramtmptrash = pop(&queueFiles);
+                } else { //rimuove il secondo elemento
+                  fileramtmptrash = pop2(&queueFiles);
+                }
+                fprintf(stderr, "Sto espellendo il file %s dal server per far spazio al file %s\n", fileramtmptrash->nome, parametro);
                 spazioOccupato-=fileramtmptrash->length;
                   //vanno fatte FREE
               }
-              spazioOccupato+=newfile->length;
-              newfile->buffer = malloc(sizeof(char) * newfile->length);
-              if (readn(connfd, newfile->buffer, (newfile->length)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
-              fprintf(stderr, "length file %ld\n", newfile->length);
+              //fprintf(stderr, "Il file ci sta! :D\n");
+              spazioOccupato+=lentmp;
+
+              char* buftmp = malloc(sizeof(char) * lentmp);
+
+              //newfile->buffer = malloc(sizeof(char) * newfile->length);
+              if (readn(connfd, buftmp, lentmp * sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+              fprintf(stderr, "length file %d\n", lentmp);
+
+              //ora dobbiamo fare la scrittura
+
+              if(newfile->buffer == NULL) { //file vuoto, prima scrittura
+                newfile->length = lentmp;
+                newfile->buffer = buftmp;
+              } else { //file già pieno, appendToFile
+                fprintf(stderr, "scrittura in append\n");
+                newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length));
+                for(int i = 0; i < lentmp; i++)
+                  newfile->buffer[i + newfile->length] = buftmp[i];
+                newfile->length+=lentmp;
+              }
               ris = 0; //tutto bene
 
               fprintf(stderr, "risposta %d\n", ris);

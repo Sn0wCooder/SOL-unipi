@@ -219,10 +219,10 @@ int readFile(const char* pathname, void** buf, int* size) {
 }
 
 //int writeBufToDisk(const char* dirname, char* filename, char* buf, int len) {
-int appendToFile(const char* pathname, void* buf, int size) {
+int writeBufToDisk(const char* pathname, void* buf, int size) {
   //char path[1024];
   //snprintf(path, sizeof(path), "%s/%s", dirname, filename);
-  FILE *f = fopen (pathname, "a"); //gestire errori
+  FILE *f = fopen (pathname, "w"); //gestire errori
   fwrite(buf, 1, size, f);
   fclose(f);
   return 1;
@@ -261,12 +261,31 @@ int readNFiles(int n, const char* dirname) {
       snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]);
       fprintf(stderr, "fin qui ci siamo, dirname %s, path %s\n", dirname, path);
 
-      appendToFile(path, buffile, sizebufffile);
+      writeBufToDisk(path, buffile, sizebufffile);
       closeFile(arr_buf[i]);
     }
   }
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
 
+}
+
+int appendToFile(const char* pathname, void* buf, int size) {
+  int notused;
+  fprintf(stderr, "length file %s: %d\n", pathname, size);
+  SYSCALL_EXIT("writen3", notused, writen(sockfd, &size, sizeof(int)), "write", "");
+  int cista;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
+  if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
+    fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
+      //vanno fatte delle FREE
+    return -1;
+  }
+  SYSCALL_EXIT("writen4", notused, writen(sockfd, (char*)buf, size * sizeof(char)), "write", "");
+
+  int risposta;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
+  printf("result: %d\n", risposta);
+  return 0;
 }
 
 int writeFile(const char* pathname) {
@@ -298,20 +317,8 @@ int writeFile(const char* pathname) {
       fclose (f);
     }
 
-    fprintf(stderr, "length file %s: %ld\n", pathname, length);
-    SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
-    int cista;
-    SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
-    if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
-      fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
-        //vanno fatte delle FREE
-      return -1;
-    }
-    SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+    appendToFile(pathname, bufferFile, length);
 
-    int risposta;
-    SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
-    printf("result: %d\n", risposta);
   }
 }
 
@@ -333,7 +340,7 @@ int EseguiComandoClientServer(NodoComando *tmp) {
         char path[1024];
         snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name);
         //fprintf(stderr, "sto andando a scrivere il file %s in %s\n", tmp->name, path);
-        appendToFile(path, buf, sizebuff);
+        writeBufToDisk(path, buf, sizebuff);
         closeFile(tmp->name);
       }
     }
@@ -346,6 +353,9 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     fprintf(stderr, "comando W con parametro %s\n", tmp->name);
     if(openFile(tmp->name, 1) != -1) { //flag: apri e crea
       fprintf(stderr, "HO FATTO LA OPEN del file %s\n", tmp->name);
+      writeFile(tmp->name);
+      closeFile(tmp->name);
+    } else if(openFile(tmp->name, 0) != -1) { //flag: apri (magari il file esiste già)
       writeFile(tmp->name);
       closeFile(tmp->name);
     }
