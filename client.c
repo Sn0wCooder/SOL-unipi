@@ -153,12 +153,29 @@ int writeCMD(const char* pathname, char cmd) { //manca gestione errore
 
 }
 
+int closeFile(const char* pathname) {
+  if(pathname == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  writeCMD(pathname, 'z');
+  int res, notused;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
+  if(res == -1) {
+    fprintf(stderr, "closeFile del file %s fallita\n", pathname);
+  } else {
+    fprintf(stderr, "ho chiuso il file %s\n", pathname);
+  }
+  return res;
+}
+
 int openFile(const char* pathname, int flags) {
   if((flags != 0 && flags != 1) || pathname == NULL) { // i flag passate non sono valide (0 -> open | 1 -> open & create)
     errno = EINVAL;
     return -1;
   }
-  writeCMD(pathname, 'e');
+  writeCMD(pathname, 'o');
   int res, notused;
   SYSCALL_EXIT("writen", notused, writen(sockfd, &flags, sizeof(int)), "write", "");
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
@@ -237,14 +254,16 @@ int readNFiles(int n, const char* dirname) {
     fprintf(stderr, "elemento %d: %s\n", i, arr_buf[i]);
     void* buffile;
     int sizebufffile;
-    openFile(arr_buf[i], 0);
-    readFile(arr_buf[i], &buffile, &sizebufffile);
-    char path[1024];
-    fprintf(stderr, "fin qui ci siamo\n");
-    snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]);
-    fprintf(stderr, "fin qui ci siamo, dirname %s, path %s\n", dirname, path);
+    if(openFile(arr_buf[i], 0) != -1) {
+      readFile(arr_buf[i], &buffile, &sizebufffile);
+      char path[1024];
+      fprintf(stderr, "fin qui ci siamo\n");
+      snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]);
+      fprintf(stderr, "fin qui ci siamo, dirname %s, path %s\n", dirname, path);
 
-    appendToFile(path, buffile, sizebufffile);
+      appendToFile(path, buffile, sizebufffile);
+      closeFile(arr_buf[i]);
+    }
   }
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
 
@@ -253,61 +272,70 @@ int readNFiles(int n, const char* dirname) {
 int writeFile(const char* pathname) {
   int notused, n;
   writeCMD(pathname, 'W');
-  char *buffer = NULL;
-  n = strlen(pathname) + 2;
-  buffer = realloc(buffer, n*sizeof(char));
-  if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
+
+  int risinit;
+  SYSCALL_EXIT("readn", notused, readn(sockfd, &risinit, sizeof(int)), "read", "");
+  if(risinit == -1) {
+    fprintf(stderr, "Errore: il file %s non esiste o non è stato aperto\n", pathname);
+  } else {
+    char *buffer = NULL;
+    n = strlen(pathname) + 2;
+    buffer = realloc(buffer, n*sizeof(char));
+    if (!buffer) { perror("realloc"); fprintf(stderr, "Memoria esaurita....\n"); }
 
 
-  FILE * f = fopen (pathname, "rb");
-  long length;
-  char* bufferFile;
-  if (f) {
-    fseek (f, 0, SEEK_END);
-    length = ftell (f);
-    fseek (f, 0, SEEK_SET);
-    bufferFile = malloc (length);
-    if (bufferFile) {
-      fread (bufferFile, 1, length, f);
+    FILE * f = fopen (pathname, "rb");
+    long length;
+    char* bufferFile;
+    if (f) {
+      fseek (f, 0, SEEK_END);
+      length = ftell (f);
+      fseek (f, 0, SEEK_SET);
+      bufferFile = malloc (length);
+      if (bufferFile) {
+        fread (bufferFile, 1, length, f);
+      }
+      fclose (f);
     }
-    fclose (f);
+
+    fprintf(stderr, "length file %s: %ld\n", pathname, length);
+    SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
+    int cista;
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
+    if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
+      fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
+        //vanno fatte delle FREE
+      return -1;
+    }
+    SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
+
+    int risposta;
+    SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
+    printf("result: %d\n", risposta);
   }
-
-  fprintf(stderr, "length file %s: %ld\n", pathname, length);
-  SYSCALL_EXIT("writen3", notused, writen(sockfd, &length, sizeof(int)), "write", "");
-  int cista;
-  SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
-  if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
-    fprintf(stderr, "il file %s non sta materialmente nel server\n", pathname);
-      //vanno fatte delle FREE
-    return -1;
-  }
-  SYSCALL_EXIT("writen4", notused, writen(sockfd, bufferFile, length * sizeof(char)), "write", "");
-
-  int risposta;
-  SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
-  printf("result: %d\n", risposta);
-
 }
 
 int EseguiComandoClientServer(NodoComando *tmp) {
   if(tmp->cmd == 'c') {
     fprintf(stderr, "file da rimuovere %s\n", tmp->name);
-    openFile(tmp->name, 0);
-    removeFile(tmp->name);
+    if(openFile(tmp->name, 0) != -1) {
+      removeFile(tmp->name);
+      closeFile(tmp->name);
+    }
     return 0;
   } else if(tmp->cmd == 'r') {
     fprintf(stderr, "sto eseguendo un comando di lettura del file %s\n", tmp->name);
-    openFile(tmp->name, 0);
-
-    void* buf;
-    int sizebuff; //col size_t non va
-    readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
-    if(savefiledir != NULL && buf != NULL) {
-      char path[1024];
-      snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name);
-      //fprintf(stderr, "sto andando a scrivere il file %s in %s\n", tmp->name, path);
-      appendToFile(path, buf, sizebuff);
+    if(openFile(tmp->name, 0) != -1) {
+      void* buf;
+      int sizebuff; //col size_t non va
+      readFile(tmp->name, &buf, &sizebuff); //manca gestione errore
+      if(savefiledir != NULL && buf != NULL) {
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name);
+        //fprintf(stderr, "sto andando a scrivere il file %s in %s\n", tmp->name, path);
+        appendToFile(path, buf, sizebuff);
+        closeFile(tmp->name);
+      }
     }
     return 0;
   } else if(tmp->cmd == 'R') {
@@ -316,8 +344,11 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     return 0;
   } else if(tmp->cmd == 'W') {
     fprintf(stderr, "comando W con parametro %s\n", tmp->name);
-    if(openFile(tmp->name, 1) != -1) //flag: apri e crea
+    if(openFile(tmp->name, 1) != -1) { //flag: apri e crea
+      fprintf(stderr, "HO FATTO LA OPEN del file %s\n", tmp->name);
       writeFile(tmp->name);
+      closeFile(tmp->name);
+    }
   }
   //da qui solo se il comando è W
 
