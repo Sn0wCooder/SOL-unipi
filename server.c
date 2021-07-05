@@ -122,10 +122,24 @@ int isNumber (char* s) {
 }
 
 int updatemax(fd_set set, int fdmax) {
-    for(int i=(fdmax-1);i>=0;--i)
-	if (FD_ISSET(i, &set)) return i;
+  fprintf(stderr, "sono nell'updatemax\n");
+  for(int i=(fdmax-1);i>=0;--i)
+	 if (FD_ISSET(i, &set))
+    return i;
     //assert(1==0);
     return -1;
+}
+
+int areThereConnections(fd_set set, int fdmax) {
+  for(int i=(fdmax-1);i>=0;--i) {
+    //fprintf(stderr, "indice i %d: %d\n", i, FD_ISSET(i, &set));
+    for(int j = 0; j < numWorkers; j++) {
+      if(i != p[j][0] && FD_ISSET(i, &set)) {
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
 
 
@@ -299,11 +313,13 @@ static void* threadF(void* arg) {
             int lentmp;
             notused = readn(connfd, &lentmp, sizeof(int));
             int cista = 1; //ci sta nel server fino a prova contraria
-            if(lentmp > spazio) { //non lo memorizza proprio
+            if(lentmp > spazio || lentmp + newfile->length > spazio) { //non lo memorizza proprio
+              //il secondo controllo dopo l'or è per vedere se l'append di un file non ci sta nel server
               fprintf(stderr, "Il file %s è troppo grande (%ld) e non sta materialmente nel server (capienza massima %d)\n", newfile->nome, newfile->length, spazio);
                 //vanno fatte delle FREE
                 //vado a scrivere nel socket che il file non ci sta
-              removeFromQueue(&queueFiles, esiste);
+              if(lentmp > spazio) //se il file non esiste ancora (ha size null)
+                removeFromQueue(&queueFiles, esiste);
               cista = 0;
             }
             if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
@@ -680,11 +696,31 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "ho ricevuto una nuova richiesta da %ld\n", connfd);
 
         FD_CLR(connfd, &set);
+
         msg_t str;
         char comando;
         int r = readn(connfd, &str.len, sizeof(int));
         if(r == 0) { //il socket è vuoto
+
           fprintf(stderr, "client disconnesso\n");
+          if (connfd == fdmax)
+            fdmax = updatemax(set, fdmax);
+          if(areThereConnections(set, fdmax))
+            fprintf(stderr, "ci sono connessioni attive\n");
+          else
+            fprintf(stderr, "non ci sono altre connessioni\n");
+          //fprintf(stderr, "risultato connessione 3: %d\n", FD_ISSET(3, &set));
+          //fd_set setsignal;
+          //FD_ZERO(&setsignal);
+          //setsignal = tmpset;
+          //if(disconnecting == 1) then for...
+          /*for(int z = 0; z < fdmax; z++) {
+            if (FD_ISSET(z, &tmpset)) {
+              fprintf(stderr, "%d connesso\n", z);
+            } else fprintf(stderr, "%d NON connesso\n", z);
+            fprintf(stderr, "risultato connessione %d: %d\n", z, FD_ISSET(z, &setsignal));
+          }*/
+
           continue;
         }
         if (r<0) { fprintf(stderr, "sbagliato1\n"); }
@@ -744,4 +780,5 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+  //chiusura socket
 }
