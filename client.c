@@ -392,6 +392,7 @@ int writeFile(const char* pathname) {
     n = strlen(pathname) + 2;
     ec_null((buffer = realloc(buffer, n * sizeof(char))), "realloc");
 
+    //usare al posto la open, readn, writen, close
     FILE *f;
     ec_null((f = fopen(pathname, "rb")), "fopen");
     long length;

@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <pthread.h>
+#include <signal.h>
 #include <libgen.h>
 
 #include <sys/un.h>
@@ -39,6 +40,10 @@ Queue *queueClient; //coda dei comandi gestiti dai thread
 Queue *queueFiles; //coda dei file memorizzati
 
 int spazioOccupato = 0;
+
+int rsigint;
+int rsighup;
+int* psegnali;
 
 fd_set set;
 int **p;
@@ -266,14 +271,14 @@ Node* fileExistsInServer(Queue *q, char* nomefile) {
 }
 
 static void* threadF(void* arg) {
-  int* numthread = (int*)arg;
-  fprintf(stderr, "num thread %d\n", *numthread);
+  int numthread = *(int*)arg;
+  fprintf(stderr, "num thread %d\n", numthread);
   //fprintf(stderr, "ciao\n");
   while(1) {
     pthread_mutex_lock(&mutexQueueClient);
     while(queueClient->len == 0) {
       pthread_cond_wait(&condQueueClient, &mutexQueueClient);
-      fprintf(stderr, "sono sveglio (num thread %d)!\n", *numthread);
+      fprintf(stderr, "sono sveglio (num thread %d)!\n", numthread);
     }
     ComandoClient* tmp = pop(&queueClient);
     //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
@@ -546,10 +551,10 @@ static void* threadF(void* arg) {
     //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
     FD_SET(connfd, &set);
     //FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
-    fprintf(stderr, "num thread %d, connfd %ld\n", *numthread, connfd);
-    write(p[*numthread][1], "finito", 6);
+    fprintf(stderr, "num thread %d, connfd %ld\n", numthread, connfd);
+    write(p[numthread][1], "finito", 6);
 
-    //fprintf(stderr, "non è null, connfd %ld\n", connfd);
+    fprintf(stderr, "ho finito la scrittura, connfd %ld\n", connfd);
 
 
     /*fprintf(stderr, "comando %c resto del file passato %s\n", comando, str.str);
@@ -573,10 +578,56 @@ void printQueueClient(Queue *q) {
   }
 }
 
+static void* tSegnali(void* arg) {
+  //control + C = segnale 2, SIGINT
+  //control + \ = segnale 3, SIGQUIT
+  //SIGINT uguale a SIGQUIT
+  //kill -1 pid = segnale 1, SIGHUP
+  sigset_t *mask = (sigset_t*)arg;
+  fprintf(stderr, "sono il thread gestore segnali\n");
+  int segnalericevuto;
+  sigwait(mask, &segnalericevuto);
+  fprintf(stderr, "segnale ricevuto %d\n", segnalericevuto);
+  if(segnalericevuto == 2 || segnalericevuto == 3) { //gestione SIGINT
+    rsigint = 1;
+
+  } else if(segnalericevuto == 1) { //gestione SIGHUP
+    rsighup = 1;
+  }
+  write(psegnali[1], "segnale", 7);
+  fprintf(stderr, "scritto nella pipe il segnale\n");
+  return NULL;
+}
+
 int main(int argc, char* argv[]) {
   parser();
 
-  numWorkers = 1;
+
+  //GESTIONE SEGNALI
+  rsigint = 0; //inizialmente non ho ricevuto un segnale SIGINT
+  rsighup = 0; //inizialmente non ho ricevuto un segnale SIGHUP
+  struct sigaction sahup;
+  struct sigaction saquit;
+  struct sigaction saint; //control+C
+  memset(&sahup, 0, sizeof(sigaction));
+  memset(&saquit, 0, sizeof(sigaction));
+  memset(&saint, 0, sizeof(sigaction));
+  /*sahup.sa_handler = sighandlerhup;
+  saquit.sa_handler = sighandlerquit;
+  saint.sa_handler = sighandlerquit;*/
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+  sigaddset (&mask, SIGQUIT);
+  sigaddset (&mask, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &mask, NULL);
+  pthread_t tGestoreSegnali;
+  pthread_create(&tGestoreSegnali, NULL, tSegnali, (void*)&mask);
+  psegnali = (int*)malloc(sizeof(int) * 2);
+  if(pipe(psegnali) == -1) { perror("pipe"); }
+  //close(psegnali[1]);
+
+  numWorkers = 3;
   cleanup();
   atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
@@ -584,7 +635,7 @@ int main(int argc, char* argv[]) {
 
 
   pthread_t *t = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
-  p = (int**)malloc(sizeof(int) * numWorkers); //array delle pipe
+  p = (int**)malloc(sizeof(int*) * numWorkers); //array delle pipe
   int *arrtmp = malloc(sizeof(int) * numWorkers);
   for(int i = 0; i < numWorkers; i++) {
     //int *numthread = malloc(sizeof(int));
@@ -592,7 +643,7 @@ int main(int argc, char* argv[]) {
     arrtmp[i] = i; //per passarlo al thread
     //int numthread = i;
     //fprintf(stderr, "sto passando i %d, numthread %d\n", i, numthread);
-    pthread_create(&t[i], NULL, threadF, &arrtmp[i]);
+    pthread_create(&t[i], NULL, threadF, (void*)&(arrtmp[i]));
     //dichiaro numWorkers pipe
 
     //int *pfd = malloc(sizeof(int) * 2);
@@ -604,6 +655,7 @@ int main(int argc, char* argv[]) {
     p[i] = (int*)malloc(sizeof(int) * 2);
 
     if(pipe(p[i]) == -1) { perror("pipe"); }
+    //close((p[i])[1]);
     //p[i] = pfd;
     fprintf(stderr, "indirizzo pipe lettura %d scrittura %d\n", p[i][0], p[i][1]);
     //sleep(1);
@@ -642,20 +694,27 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "inserisco il connfd della pipe %d\n", p[i][0]);
   }
 
+  //inserisco la pipe dei segnali nella set
+  FD_SET(psegnali[0], &set);
+  if(psegnali[0] > fdmax)
+    fdmax = psegnali[0];
+
   // tengo traccia del file descriptor con id piu' grande
   //fprintf(stderr, "ciao\n");
-  for(;;) { //SIGINT CONTROL, alla chiusura del for aspetto che i thread terminino
+  while(!rsigint) { //SIGINT CONTROL, alla chiusura del for aspetto che i thread terminino
 // copio il set nella variabile temporanea per la select
+    //fprintf(stderr, "sono nel for in alto\n");
     tmpset = set;
     if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
       //in tmpset a questo punto abbiamo solo le cose effettivamente modificate
       perror("select");
       return -1;
     }
+
 // cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
 //fprintf(stderr, "fdmax %d\n", fdmax);
     for(int i=0; i <= fdmax; i++) {
-      //fprintf(stderr, "ciao\n");
+      //fprintf(stderr, "ciao7\n");
       if (FD_ISSET(i, &tmpset)) { //ora so che qualcosa è pronto, ma non so cosa, e devo capire se l'i-esimo è pronto
         long connfd;
         if (i == listenfd) { //SIGHUP CONTROL // e' una nuova richiesta di connessione
@@ -667,16 +726,31 @@ int main(int argc, char* argv[]) {
           continue;
         }
         //ELSE
+        connfd = i;  // e' una nuova richiesta da un client già connesso o da una pipe
+
+        //gestione segnali
+        if(connfd == psegnali[0]) { //se è vero, ho ricevuto un segnale
+          fprintf(stderr, "ricevuto segnale nel main\n");
+          char buftmp[8];
+          read(connfd, buftmp, 7);
+          pthread_cond_broadcast(&condQueueClient);
+          //va gestito
+          /*if(rsigint) { //il segnale ricevuto è SIGINT
+
+          }*/
+          continue;
+        }
+
         //controllo se è una delle pipe
-        connfd = i;  // e' una nuova richiesta da un client già connesso
         int ispipe = 0;
         for(int j = 0; j < numWorkers; j++) {
           //fprintf(stderr, "sono nel for, connfd %ld p[j][0] %d\n", connfd, p[j][0]);
           if(connfd == p[j][0]) {
             //fprintf(stderr, "è una pipe\n");
-            char* buftmp;
+            char buftmp[7];
             read(connfd, buftmp, 6);
-            fprintf(stderr, "è una pipe, ho letto dalla read %s, connfd %ld\n", buftmp, connfd);
+            fprintf(stderr, "è una pipe\n");
+            //fprintf(stderr, "è una pipe, ho letto dalla read %s, connfd %ld\n", buftmp, connfd);
             ispipe = 1;
             //FD_CLR(connfd, &set);
             //FD_SET(connfd, &set);  // aggiungo il descrittore al master set
@@ -714,7 +788,7 @@ int main(int argc, char* argv[]) {
           fprintf(stderr, "client disconnesso\n");
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
-          if(areThereConnections(set, fdmax))
+          if(areThereConnections(tmpset, fdmax))
             fprintf(stderr, "ci sono connessioni attive\n");
           else
             fprintf(stderr, "non ci sono altre connessioni\n");
@@ -789,5 +863,6 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+  fprintf(stderr, "sono fuori dal for\n");
   //chiusura socket, pipe
 }

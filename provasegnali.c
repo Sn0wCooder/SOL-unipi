@@ -32,6 +32,17 @@ void sighandlerhup (int sig) {
     return;
 }
 
+int threadworker() {
+
+}
+
+int threadgestore() {
+  int segnalericevuto;
+sigwait(mask, &segnalericevuto);
+//arrivo qui: ho ricevuto un segnale
+if(segnalericevuto == SIGINT) ...
+}
+
 int main(void) {
 
   struct sigaction sahup;
@@ -43,13 +54,19 @@ int main(void) {
   sahup.sa_handler = sighandlerhup;
   saquit.sa_handler = sighandlerquit;
   saint.sa_handler = sighandlerquit;
-  sigaction(SIGHUP, &sahup, NULL);
+  /*sigaction(SIGHUP, &sahup, NULL);
   sigaction(SIGQUIT, &saquit, NULL);
-  sigaction(SIGINT, &saint, NULL);
-  //sigset_t mask;
-  //sigemptyset(&mask);
-  //sigaddset(&mask, SIGHUP);
-  //sigaddset (&mask, SIGQUIT);
+  sigaction(SIGINT, &saint, NULL);*/
+
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+  sigaddset (&mask, SIGQUIT);
+  sigaddset (&mask, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &mask, NULL);
+  //spawn thread worker
+  //spawn thread gestore, con la sigwait
+
   //signal(SIGINT, sighandlerhup);
   sleep(10);
 }

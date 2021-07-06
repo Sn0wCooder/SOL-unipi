@@ -2,3 +2,4 @@ il size_t sizebuff nel client non va con le richieste di scrittura (-w)
 parser non funziona nel client
 modificare stderr, stdout
 togliere if(verbose) negli errori
+define O_CREATE

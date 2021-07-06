@@ -22,10 +22,10 @@ void push(Queue **q, void* el) { //inserimento in coda in una FIFO
   Node *n = malloc(sizeof(Node));
   n->data = el;
   n->next = NULL;
-  //fprintf(stderr, "ciao1\n");
+  fprintf(stderr, "ciao1\n");
   //inserimento in coda
-  if((*q)->head == NULL) { //inserimento in coda vuota
-    //fprintf(stderr, "coda vuota\n");
+  if((*q)->len == 0) { //inserimento in coda vuota
+    fprintf(stderr, "coda vuota\n");
 
     (*q)->head = n;
     (*q)->tail = n;
