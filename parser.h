@@ -13,4 +13,7 @@ char* savefiledir;
 int seenr;
 int seenR;
 int timems;
+char* socknameconfig;
 int verbose;
+int seenf;
+int seenp;

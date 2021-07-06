@@ -1,0 +1,16 @@
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client
+il size_t sizebuff nel client non va con le richieste di scrittura (-w)
+parser non funziona nel client

@@ -5,6 +5,11 @@ int isNumber(const char* s);
 static inline int writen(long fd, void *buf, size_t size);
 static inline int readn(long fd, void *buf, size_t size);
 
+#define ec_meno1(c, s) if((c) == -1){ perror(s); exit(EXIT_FAILURE); }
+#define neq_zero(c, s) if((c) != 0){ perror(s); exit(EXIT_FAILURE); }
+#define ec_null(c, s) if((c) == NULL) { perror(s); exit(EXIT_FAILURE); }
+
+
 #define SYSCALL_EXIT(name, r, sc, str, ...)	\
     if ((r=sc) == -1) {				\
 	perror(#name);				\

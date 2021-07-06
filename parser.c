@@ -98,30 +98,39 @@ Queue* parser(int argc, char* argv[]) {
   savefiledir = NULL;
   timems = 0;
   verbose = 0;
+  seenf = 0;
+  seenp = 0;
 
   char* arg, *token, *save;
   Queue *q = malloc(sizeof(Queue));
   while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
-        case 'h':
-        fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-                  "-h                 : stampa la lista delle opzioni",
-                  "-f filename        : specifica il filename del socket a cui deve connettersi il client",
-                  "-w dirname[,n=0]   : manda i file dalla cartella 'dirname' al server",
-                  "-W file1[,file2]   : lista dei file che devono essere scritti nel server",
-                  "-r file1[,file2]   : lista dei file che devono essere letti dal server",
-                  "-R [n=0]           : leggi 'n' file presenti sul server",
-                  "-d dirname         : specifica la cartella dove scrivere i file letti con -r e -R",
-                  "-t time            : tempo in millisecondi per fare due richieste consecutive al server",
-                  //"-l file1[,file2]   : lista di file a cui acquisire la mutua esclusione",
-                  //"-u file1[,file2]   : lista di file a cui rilasciare la mutua esclusione",
-                  "-c file1[,file2]   : lista di file da eliminare dal server, se presenti",
-                  "-p                 : modalità verbosa per nerd"
-          );
-          exit(EXIT_SUCCESS);
-          break;
+        case 'h': {
+          fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+                    "-h                 : stampa la lista delle opzioni",
+                    "-f filename        : specifica il filename del socket a cui deve connettersi il client",
+                    "-w dirname[,n=0]   : manda i file dalla cartella 'dirname' al server",
+                    "-W file1[,file2]   : lista dei file che devono essere scritti nel server",
+                    "-r file1[,file2]   : lista dei file che devono essere letti dal server",
+                    "-R [n=0]           : leggi 'n' file presenti sul server",
+                    "-d dirname         : specifica la cartella dove scrivere i file letti con -r e -R",
+                    "-t time            : tempo in millisecondi per fare due richieste consecutive al server",
+                    "-c file1[,file2]   : lista di file da eliminare dal server, se presenti",
+                    "-p                 : modalità verbosa per nerd"
+            );
+            exit(EXIT_SUCCESS);
+            break;
+        }
         case 'f': {
-          insert(&q, 'f', optarg, 0);
+
+          if(seenf == 1) {
+            fprintf(stderr, "ERRORE: l'opzione -f va specificata una volta sola\n");
+            exit(EXIT_FAILURE);
+          }
+          seenf = 1;
+          //insert(&q, 'f', optarg, 0);
+          socknameconfig = malloc(sizeof(char) * strlen(optarg));
+          strcpy(socknameconfig, optarg);
           //printf("filename %s\n", optarg);
           //printQueue(q);
           break;
@@ -292,6 +301,11 @@ Queue* parser(int argc, char* argv[]) {
             //insert(&q, 'p', optarg, 0);
             //printf("filename %s\n", optarg);
             //printQueue(q);
+            if(seenp == 1) {
+              fprintf(stderr, "ERRORE: l'opzione -p va specificata una volta sola\n");
+              exit(EXIT_FAILURE);
+            }
+            seenp = 1;
             verbose = 1;
             //printQueue(q);
             break;

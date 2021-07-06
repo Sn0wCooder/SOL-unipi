@@ -59,6 +59,7 @@ typedef struct _file {
   char* buffer; //contenuto
   long length; //per fare la read e la write, meglio se memorizzato
   int is_locked;
+  pthread_mutex_t lock;
 } fileRAM;
 
 static inline int readn(long fd, void *buf, size_t size) {
@@ -304,6 +305,7 @@ static void* threadF(void* arg) {
           if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
         } else { //file esiste
           fileRAM *newfile = esiste->data;
+          pthread_mutex_lock(&newfile->lock);
           if(newfile->is_locked != connfd) { //file eistse ma non aperto dal client
             ris = -1;
           }
@@ -326,6 +328,7 @@ static void* threadF(void* arg) {
             if(cista) {
               //fprintf(stderr, "UEEEEEEE\n");
               fileRAM *fileramtmptrash;
+              pthread_mutex_lock(&mutexQueueFiles);
               while(spazioOccupato + lentmp > spazio) { //deve iniziare ad espellere file
                 fprintf(stderr, "il server è pieno (di spazio)\n");
                 fileRAM *firstel = returnFirstEl(queueFiles);
@@ -340,6 +343,7 @@ static void* threadF(void* arg) {
               }
               //fprintf(stderr, "Il file ci sta! :D\n");
               spazioOccupato+=lentmp;
+              pthread_mutex_unlock(&mutexQueueFiles);
 
               char* buftmp = malloc(sizeof(char) * lentmp);
 
@@ -368,7 +372,7 @@ static void* threadF(void* arg) {
               if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
             }
           }
-
+          pthread_mutex_unlock(&newfile->lock);
         }
 
 
@@ -407,6 +411,8 @@ static void* threadF(void* arg) {
         int len; //RISPOSTA che ci dice se è tutto ok o no
         if(esiste != NULL) { //file esistente nel server
           fileRAM *filetmp = esiste->data;
+          pthread_mutex_lock(&filetmp->lock);
+          pthread_mutex_unlock(&mutexQueueFiles);
           if(filetmp->is_locked == connfd) { //file aperto da quel client
             len = filetmp->length;
             char* buf = filetmp->buffer;
@@ -419,7 +425,7 @@ static void* threadF(void* arg) {
             if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
             fprintf(stderr, "file %s NON letto dal server, non aperto da quel client\n", parametro);
           }
-          pthread_mutex_unlock(&mutexQueueFiles);
+          pthread_mutex_unlock(&filetmp->lock);
         } else { //ERRORE: file non trovato nel server
           pthread_mutex_unlock(&mutexQueueFiles);
           len = -1;
@@ -479,6 +485,7 @@ static void* threadF(void* arg) {
           }
 
           fileRAM *newfile = malloc(sizeof(fileRAM));
+          pthread_mutex_init(&newfile->lock, NULL);
           newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1));
           strcpy(newfile->nome, basename(parametro));
           newfile->nome[strlen(basename(parametro))] = '\0';
@@ -513,12 +520,14 @@ static void* threadF(void* arg) {
           ris = -1;
         } else { //file da chiudere esiste nel server
           fileRAM *fileramtmp = esiste->data;
+          pthread_mutex_lock(&fileramtmp->lock);
           if(fileramtmp->is_locked != connfd) { //errore: file non aperto da quel client
             ris = -1;
           } else { //chiudo il file
             fileramtmp->is_locked = -1;
             ris = 0; //tutto ok
           }
+          pthread_mutex_unlock(&fileramtmp->lock);
           pthread_mutex_unlock(&mutexQueueFiles);
         }
         if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
@@ -635,7 +644,7 @@ int main(int argc, char* argv[]) {
 
   // tengo traccia del file descriptor con id piu' grande
   //fprintf(stderr, "ciao\n");
-  for(;;) {
+  for(;;) { //SIGINT CONTROL, alla chiusura del for aspetto che i thread terminino
 // copio il set nella variabile temporanea per la select
     tmpset = set;
     if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
@@ -649,7 +658,7 @@ int main(int argc, char* argv[]) {
       //fprintf(stderr, "ciao\n");
       if (FD_ISSET(i, &tmpset)) { //ora so che qualcosa è pronto, ma non so cosa, e devo capire se l'i-esimo è pronto
         long connfd;
-        if (i == listenfd) { // e' una nuova richiesta di connessione
+        if (i == listenfd) { //SIGHUP CONTROL // e' una nuova richiesta di connessione
           //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
           connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
           FD_SET(connfd, &set);  // aggiungo il descrittore al master set
@@ -780,5 +789,5 @@ int main(int argc, char* argv[]) {
       }
     }
   }
-  //chiusura socket
+  //chiusura socket, pipe
 }
