@@ -31,22 +31,25 @@ void printQueue(Queue *q) {
   NodoComando *no = NULL;
   while(tmp != NULL) {
     no = tmp->data;
-    fprintf(stdout, "comando %c nome %s n %d\n", no->cmd, no->name, no->n);
+    fprintf(stdout, "Comando %c, nome %s, n %d\n", no->cmd, no->name, no->n);
     tmp = tmp->next;
   }
 }
 
 void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo mette nella coda
   //printf("sto inserendo %c stringa %s n %d\n", cmd, name, n);
-  NodoComando *new = malloc(sizeof(NodoComando));
+  NodoComando *new; // = malloc(sizeof(NodoComando));
+  ec_null((new = malloc(sizeof(NodoComando))), "malloc");
   new->cmd = cmd;
   //printf("inserisco name %s\n", name);
   if(name != NULL) {
-    new->name = malloc(sizeof(char) * strlen(name));
+    ec_null((new->name = malloc(sizeof(char) * strlen(name))), "malloc");
+    //new->name = malloc(sizeof(char) * strlen(name));
     strncpy(new->name, name, strlen(name));
   }
   new->n = n;
-  push(q, new);
+  ec_meno1((push(q, new)), "push");
+  //push(q, new);
   //printf("\n\n\n");
   //printQueue(*q);
   //printf("\n\n\n");
@@ -102,7 +105,8 @@ Queue* parser(int argc, char* argv[]) {
   seenp = 0;
 
   char* arg, *token, *save;
-  Queue *q = malloc(sizeof(Queue));
+  Queue *q; // = malloc(sizeof(Queue));
+  ec_null((q = malloc(sizeof(Queue))), "malloc");
   while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
         case 'h': {
@@ -129,7 +133,8 @@ Queue* parser(int argc, char* argv[]) {
           }
           seenf = 1;
           //insert(&q, 'f', optarg, 0);
-          socknameconfig = malloc(sizeof(char) * strlen(optarg));
+          ec_null((socknameconfig = malloc(sizeof(char) * strlen(optarg))), "malloc");
+          //socknameconfig = malloc(sizeof(char) * strlen(optarg));
           strcpy(socknameconfig, optarg);
           //printf("filename %s\n", optarg);
           //printQueue(q);
@@ -139,13 +144,16 @@ Queue* parser(int argc, char* argv[]) {
             //printf("guardo w %s\n", optarg);
             //controllare: se ci sono più dirname, se c'è n e se n è un numero
 
-            arg = malloc(sizeof(char) * strlen(optarg)); //argomento di w
+            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            //arg = malloc(sizeof(char) * strlen(optarg)); //argomento di w
             strncpy(arg, optarg, strlen(optarg)); //lo copio in una variabile temporanea
 
             //tokenizzo la stringa e vedo il numero di virgole
             save = NULL;
             token = strtok_r(arg, ",", &save);
-            char* dirname = malloc(sizeof(char) * strlen(token)); //dirname = primo token prima della prima virgola
+            char* dirname; // = malloc(sizeof(char) * strlen(token));
+            //dirname = primo token prima della prima virgola
+            ec_null((dirname = malloc(sizeof(char) * strlen(token))), "malloc");
             strncpy(dirname, token, strlen(token));
             int contavirgole = -1;
             char* tmp; //temporanea, in cui sarà salvato l'ultimo token dopo le virgole
@@ -184,7 +192,8 @@ Queue* parser(int argc, char* argv[]) {
         case 'W': {
             //printf("Sto guardando gli argomenti di -l\n");
 
-            arg = malloc(sizeof(char) * strlen(optarg));
+            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            //arg = malloc(sizeof(char) * strlen(optarg));
             strncpy(arg, optarg, strlen(optarg));
 
             save = NULL;
@@ -202,7 +211,8 @@ Queue* parser(int argc, char* argv[]) {
           case 'r': {
               //printf("Sto guardando gli argomenti di -l\n");
 
-              arg = malloc(sizeof(char) * strlen(optarg));
+              ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+              //arg = malloc(sizeof(char) * strlen(optarg));
               strncpy(arg, optarg, strlen(optarg));
 
               save = NULL;
@@ -253,7 +263,8 @@ Queue* parser(int argc, char* argv[]) {
         case 'd': {
           //fprintf(stderr, "siamo alla d\n");
           //insert(&q, 'd', optarg, 0);
-          savefiledir = malloc(sizeof(char) * strlen(optarg));
+          ec_null((savefiledir = malloc(sizeof(char) * strlen(optarg))), "malloc");
+          //savefiledir = malloc(sizeof(char) * strlen(optarg));
           strcpy(savefiledir, optarg);
           //printf("filename %s\n", optarg);
           //printQueue(q);
@@ -281,7 +292,8 @@ Queue* parser(int argc, char* argv[]) {
         case 'c': {
             //printf("Sto guardando gli argomenti di -l\n");
 
-            arg = malloc(sizeof(char) * strlen(optarg));
+            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            //arg = malloc(sizeof(char) * strlen(optarg));
             strncpy(arg, optarg, strlen(optarg));
 
             save = NULL;
@@ -315,15 +327,15 @@ Queue* parser(int argc, char* argv[]) {
             printf("caso S\n");
             break;*/
         case ':':                           /* error - missing operand */
-            fprintf(stderr, "Option -%c requires an operand\n", optopt);
+            fprintf(stderr, "Errore: l'opzione -%c richiede un argomento\n", optopt);
             break;
         case '?':                           /* error - unknown option */
-            fprintf(stderr,"Unrecognized option: -%c\n", optopt);
+            fprintf(stderr,"Opzione non riconosciuta: -%c\n", optopt);
             break;
       }
    }
    if(savefiledir != NULL && seenr == 0 && seenR == 0) {
-     fprintf(stderr, "errore, l'opzione -d va usata insieme a -r o a -R\n");
+     fprintf(stderr, "Errore, l'opzione -d va usata insieme a -r o a -R\n");
      exit(EXIT_FAILURE);
    }
    return q;

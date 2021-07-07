@@ -74,8 +74,8 @@ typedef struct msg {
     char *str;
 } msg_t;
 
-int cleanup() {
-  return unlink(SockName);
+void cleanup() {
+  unlink(SockName);
 }
 
 int updatemax(fd_set set, int fdmax) {
@@ -200,11 +200,13 @@ void parser(void) {
 void printQueueFiles(Queue *q) {
   Node* tmp = q->head;
   fileRAM *no = NULL;
+  fprintf(stdout, "Coda dei file:\n");
   while(tmp != NULL) {
     no = tmp->data;
-    fprintf(stdout, "nomefile %s length %ld\n", no->nome, no->length);
+    fprintf(stdout, "filename %s, length %ld\n", no->nome, no->length);
     tmp = tmp->next;
   }
+  fprintf(stdout, "Fine stampa coda dei file:\n");
 }
 
 Node* fileExistsInServer(Queue *q, char* nomefile) {
@@ -337,7 +339,7 @@ static void* threadF(void* arg) {
                 newfile->length = lentmp;
                 newfile->buffer = buftmp;
               } else { //file già pieno, appendToFile
-                fprintf(stderr, "scrittura in append\n");
+                fprintf(stderr, "Scrittura in append\n");
                 //newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length));
                 ec_null((newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length))), "realloc");
                 for(int i = 0; i < lentmp; i++)
@@ -544,7 +546,8 @@ static void* threadF(void* arg) {
     FD_SET(connfd, &set);
     //FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
     //fprintf(stderr, "num thread %d, connfd %ld\n", numthread, connfd);
-    write(p[numthread][1], "finito", 6);
+    //write(p[numthread][1], "finito", 6);
+    SYSCALL_EXIT("writen", notused, writen(p[numthread][1], "finito", 6), "write", "");
 
     //fprintf(stderr, "ho finito la scrittura, connfd %ld\n", connfd);
 
@@ -573,23 +576,31 @@ void printQueueClient(Queue *q) {
 }
 
 static void* tSegnali(void* arg) {
+  if(arg == NULL) {
+    errno = EINVAL;
+    perror("tSegnali");
+    exit(EXIT_FAILURE);
+  }
   //control + C = segnale 2, SIGINT
   //control + \ = segnale 3, SIGQUIT
   //SIGINT uguale a SIGQUIT
   //kill -1 pid = segnale 1, SIGHUP
+
   sigset_t *mask = (sigset_t*)arg;
-  fprintf(stderr, "sono il thread gestore segnali\n");
+  fprintf(stdout, "Sono il thread gestore segnali\n");
   int segnalericevuto;
   sigwait(mask, &segnalericevuto);
-  fprintf(stderr, "segnale ricevuto %d\n", segnalericevuto);
+  fprintf(stdout, "Sono il thread gestore segnali, ho ricevuto il segnale %d\n", segnalericevuto);
   if(segnalericevuto == 2 || segnalericevuto == 3) { //gestione SIGINT
     rsigint = 1;
 
   } else if(segnalericevuto == 1) { //gestione SIGHUP
     rsighup = 1;
   }
-  write(psegnali[1], "segnale", 7);
-  fprintf(stderr, "scritto nella pipe il segnale\n");
+  int notused;
+  SYSCALL_EXIT("writen", notused, writen(psegnali[1], "segnale", 7), "write", "");
+  //write(psegnali[1], "segnale", 7);
+  fprintf(stdout, "Sono il thread gestore segnali e ho concluso ciò che dovevo fare\n");
   return NULL;
 }
 
@@ -612,32 +623,40 @@ int main(int argc, char* argv[]) {
   sigset_t mask;
   sigemptyset(&mask);
   sigaddset(&mask, SIGHUP);
-  sigaddset (&mask, SIGQUIT);
-  sigaddset (&mask, SIGINT);
-  pthread_sigmask(SIG_SETMASK, &mask, NULL);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGINT);
+  if(pthread_sigmask(SIG_SETMASK, &mask, NULL) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
   pthread_t tGestoreSegnali;
-  pthread_create(&tGestoreSegnali, NULL, tSegnali, (void*)&mask);
-  psegnali = (int*)malloc(sizeof(int) * 2);
-  if(pipe(psegnali) == -1) { perror("pipe"); }
+  if(pthread_create(&tGestoreSegnali, NULL, tSegnali, (void*)&mask) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
+  //psegnali = (int*)malloc(sizeof(int) * 2);
+  ec_null((psegnali = (int*)malloc(sizeof(int) * 2)), "malloc");
+  ec_meno1((pipe(psegnali)), "pipe");
+
+  //if(pipe(psegnali) == -1) { perror("pipe"); }
   //close(psegnali[1]);
 
-  numWorkers = 6;
+  //numWorkers = 6;
+  //ec_meno1(cleanup(), "cleanup");
+
   cleanup();
   atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
   queueFiles = initQueue();
 
-
-  pthread_t *t = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
-  p = (int**)malloc(sizeof(int*) * numWorkers); //array delle pipe
-  int *arrtmp = malloc(sizeof(int) * numWorkers);
+  pthread_t *t;
+  ec_null((t = malloc(sizeof(pthread_t) * numWorkers)), "malloc");
+  //pthread_t *t; = malloc(sizeof(pthread_t) * numWorkers); //array dei thread
+  ec_null((p = (int**)malloc(sizeof(int*) * numWorkers)), "malloc");
+  //p = (int**)malloc(sizeof(int*) * numWorkers); //array delle pipe
+  int *arrtmp; // = malloc(sizeof(int) * numWorkers);
+  ec_null((arrtmp = malloc(sizeof(int) * numWorkers)), "malloc");
   for(int i = 0; i < numWorkers; i++) {
     //int *numthread = malloc(sizeof(int));
     //*numthread = &i;
     arrtmp[i] = i; //per passarlo al thread
     //int numthread = i;
     //fprintf(stderr, "sto passando i %d, numthread %d\n", i, numthread);
-    pthread_create(&t[i], NULL, threadF, (void*)&(arrtmp[i]));
+    if(pthread_create(&t[i], NULL, threadF, (void*)&(arrtmp[i])) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
     //dichiaro numWorkers pipe
 
     //int *pfd = malloc(sizeof(int) * 2);
@@ -646,12 +665,14 @@ int main(int argc, char* argv[]) {
     //int pfd[2];
     //if(pipe(pfd) == -1) { perror("pipe"); }
 
-    p[i] = (int*)malloc(sizeof(int) * 2);
+    //p[i] = (int*)malloc(sizeof(int) * 2);
+    ec_null((p[i] = (int*)malloc(sizeof(int) * 2)), "malloc");
 
-    if(pipe(p[i]) == -1) { perror("pipe"); }
+    ec_meno1((pipe(p[i])), "pipe");
+    //if(pipe(p[i]) == -1) { perror("pipe"); }
     //close((p[i])[1]);
     //p[i] = pfd;
-    fprintf(stderr, "indirizzo pipe lettura %d scrittura %d\n", p[i][0], p[i][1]);
+    //fprintf(stderr, "indirizzo pipe lettura %d scrittura %d\n", p[i][0], p[i][1]);
     //sleep(1);
   }
 
@@ -662,19 +683,27 @@ int main(int argc, char* argv[]) {
   //SYSCALL_EXIT("socket", listenfd, socket(AF_UNIX, SOCK_STREAM, 0), "socket", "");
   listenfd = socket(AF_UNIX, SOCK_STREAM, 0);
 
+  if(listenfd == -1) {
+    perror("socket");
+    exit(EXIT_FAILURE);
+  }
+
   struct sockaddr_un serv_addr;
   memset(&serv_addr, '0', sizeof(serv_addr));
   serv_addr.sun_family = AF_UNIX;
   strncpy(serv_addr.sun_path, SockName, strlen(SockName)+1);
 
   int notused;
-  //SYSCALL_EXIT("bind", notused, bind(listenfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr)), "bind", "");
-  notused = bind(listenfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr));
-  //SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
-  notused = listen(listenfd, MAXBACKLOG);
+  SYSCALL_EXIT("bind", notused, bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)), "bind", "");
+  //notused = bind(listenfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr));
+  SYSCALL_EXIT("listen", notused, listen(listenfd, MAXBACKLOG), "listen", "");
+  //notused = listen(listenfd, MAXBACKLOG);
 
   fd_set tmpset; //fd che voglio aspettare
   // azzero sia il master set che il set temporaneo usato per la select
+  //ec_meno1((FD_ZERO(&set)), "FD_ZERO");
+  //ec_meno1((FD_ZERO(&tmpset)), "FD_ZERO");
+
   FD_ZERO(&set);
   FD_ZERO(&tmpset);
 
@@ -686,7 +715,7 @@ int main(int argc, char* argv[]) {
     FD_SET(p[i][0], &set); //p array di pipe, aggiungo tutte le pipe alla set in lettura
     if(p[i][0] > fdmax)
       fdmax = p[i][0];
-    fprintf(stderr, "inserisco il connfd della pipe %d\n", p[i][0]);
+    //fprintf(stderr, "inserisco il connfd della pipe %d\n", p[i][0]);
   }
 
   //inserisco la pipe dei segnali nella set
@@ -700,22 +729,24 @@ int main(int argc, char* argv[]) {
 // copio il set nella variabile temporanea per la select
     //fprintf(stderr, "sono nel for in alto\n");
     tmpset = set;
-    fprintf(stderr, "totale connessioni attive prima della select: %d\n", nattivi);
-    if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
+    //fprintf(stderr, "totale connessioni attive prima della select: %d\n", nattivi);
+    /*if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
       //in tmpset a questo punto abbiamo solo le cose effettivamente modificate
       perror("select");
       return -1;
-    }
+    }*/
+    ec_meno1((select(fdmax+1, &tmpset, NULL, NULL, NULL)), "select");
 
 // cerchiamo di capire da quale fd abbiamo ricevuto una richiesta
 //fprintf(stderr, "fdmax %d\n", fdmax);
-    for(int i=0; i <= fdmax; i++) {
+    for(int i = 0; i <= fdmax; i++) {
       //fprintf(stderr, "ciao7\n");
       if (FD_ISSET(i, &tmpset)) { //ora so che qualcosa è pronto, ma non so cosa, e devo capire se l'i-esimo è pronto
         long connfd;
         if (i == listenfd) { //SIGHUP CONTROL // e' una nuova richiesta di connessione
           //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
-          connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+          ec_meno1((connfd = accept(listenfd, (struct sockaddr*)NULL, NULL)), "accept");
+          //connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
           FD_SET(connfd, &set);  // aggiungo il descrittore al master set
           nattivi++;
           if(connfd > fdmax)
@@ -727,17 +758,19 @@ int main(int argc, char* argv[]) {
 
         //gestione segnali
         if(connfd == psegnali[0]) { //se è vero, ho ricevuto un segnale
-          fprintf(stderr, "ricevuto segnale nel main\n");
+          fprintf(stderr, "Ho ricevuto segnale nel main\n");
           char buftmp[8];
-          read(connfd, buftmp, 7);
-          pthread_cond_broadcast(&condQueueClient);
+          //read(connfd, buftmp, 7);
+          SYSCALL_EXIT("readn", notused, readn(connfd, buftmp, 7), "read", "");
+          if(pthread_cond_broadcast(&condQueueClient) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
           //va gestito
           /*if(rsigint) { //il segnale ricevuto è SIGINT
 
           }*/
           if(rsighup) {
             FD_CLR(listenfd, &set);
-            close(listenfd);
+            ec_meno1((close(listenfd)), "close");
+            //close(listenfd);
           }
           continue;
         }
@@ -749,8 +782,9 @@ int main(int argc, char* argv[]) {
           if(connfd == p[j][0]) {
             //fprintf(stderr, "è una pipe\n");
             char buftmp[7];
-            read(connfd, buftmp, 6);
-            fprintf(stderr, "è una pipe\n");
+            SYSCALL_EXIT("readn", notused, readn(connfd, buftmp, 6), "read", "");
+            //read(connfd, buftmp, 6);
+            //fprintf(stderr, "è una pipe\n");
             //fprintf(stderr, "è una pipe, ho letto dalla read %s, connfd %ld\n", buftmp, connfd);
             ispipe = 1;
             //FD_CLR(connfd, &set);
@@ -777,25 +811,27 @@ int main(int argc, char* argv[]) {
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
         }*/
-        fprintf(stderr, "ho ricevuto una nuova richiesta da %ld\n", connfd);
+        fprintf(stderr, "Sono il main, ho ricevuto una nuova richiesta da %ld\n", connfd);
 
         FD_CLR(connfd, &set);
 
         msg_t str;
         char comando;
         int r = readn(connfd, &str.len, sizeof(int));
-        if(r == 0 || r == -1 || str.len == -1) { //il socket è vuoto
+        if(r == 0 || r == -1 || str.len == -1) { //il socket è vuoto, connessione chiusa
 
-          fprintf(stderr, "client %ld disconnesso\n", connfd);
+          fprintf(stderr, "Client %ld disconnesso\n", connfd);
           nattivi--;
           FD_CLR(connfd, &set);
-          close(connfd);
+          //close(connfd);
+          ec_meno1((close(connfd)), "close");
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
-          if(nattivi > 0)
-            fprintf(stderr, "ci sono connessioni attive, nattivi %d\n", nattivi);
-          else {
-            fprintf(stderr, "non ci sono altre connessioni\n");
+          if(nattivi > 0) {
+            //fprintf(stderr, "ci sono connessioni attive, nattivi %d\n", nattivi);
+            fprintf(stdout, "");
+          } else {
+            //fprintf(stderr, "Non ci sono altre connessioni\n");
             if(rsighup) {
               rsigint = 1; //a questo punto si deve comportare come avesse ricevuto un sigint
               pthread_cond_broadcast(&condQueueClient);
@@ -816,41 +852,48 @@ int main(int argc, char* argv[]) {
 
           continue;
         }
-        if (r<0) { fprintf(stderr, "sbagliato1\n"); }
+        if (r<0) { perror("readn"); exit(EXIT_FAILURE); }
         str.len = str.len - sizeof(char);
         //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
-        if (readn(connfd, &comando, sizeof(char))<=0) { fprintf(stderr, "sbagliato4\n"); }
+        //if (readn(connfd, &comando, sizeof(char))<=0) { fprintf(stderr, "sbagliato4\n"); }
+        SYSCALL_EXIT("readn", notused, readn(connfd, &comando, sizeof(char)), "read", "");
+
 
         //fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
-        str.str = calloc((str.len), sizeof(char));
-        if (!str.str) {
+        //str.str = calloc((str.len), sizeof(char));
+        ec_null((str.str = calloc((str.len), sizeof(char))), "calloc");
+        /*if (!str.str) {
     	     perror("calloc");
     	      fprintf(stderr, "Memoria esaurita....\n");
     	       //return NULL;
-        }
-        if (readn(connfd, str.str, (str.len)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+        }*/
+        SYSCALL_EXIT("readn", notused, readn(connfd, str.str, (str.len)*sizeof(char)), "read", "");
+        //if (readn(connfd, str.str, (str.len)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //if (readn(connfd, str.str, (str.len - sizeof(char))*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
         //fprintf(stderr, "fin qui2222\n");
 
         //inserisco in coda il comando letto
-        ComandoClient *cmdtmp = malloc(sizeof(ComandoClient));
+        ComandoClient *cmdtmp; // = malloc(sizeof(ComandoClient));
+        ec_null((cmdtmp = malloc(sizeof(ComandoClient))), "malloc");
         cmdtmp->comando = comando;
-        cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1);
+        ec_null((cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1)), "malloc");
+        //cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1);
         cmdtmp->connfd = connfd;
         strcpy(cmdtmp->parametro, str.str);
         cmdtmp->parametro[strlen(str.str)] = '\0';
-        fprintf(stderr, "il parametro è %s\n", cmdtmp->parametro);
+        //fprintf(stderr, "il parametro è %s\n", cmdtmp->parametro);
 
-        pthread_mutex_lock(&mutexQueueClient);
-        fprintf(stderr, "parte1\n");
+        Pthread_mutex_lock(&mutexQueueClient);
+        //fprintf(stderr, "parte1\n");
         //printQueueClient(queueClient);
-        fprintf(stderr, "parte32482\n");
+        //fprintf(stderr, "parte32482\n");
 
-        push(&queueClient, cmdtmp);
-        fprintf(stderr, "parte2\n");
+        //push(&queueClient, cmdtmp);
+        ec_meno1((push(&queueClient, cmdtmp)), "push");
+        //fprintf(stderr, "parte2\n");
 
-        pthread_mutex_unlock(&mutexQueueClient);
+        Pthread_mutex_unlock(&mutexQueueClient);
         pthread_cond_signal(&condQueueClient);
 
 
@@ -877,30 +920,36 @@ int main(int argc, char* argv[]) {
   //fprintf(stderr, "listenfd %d\n", listenfd);
   //aspetto che i thread terminino
   for(int i = 0; i < numWorkers; i++)
-    pthread_join(t[i], NULL);
-  pthread_join(tGestoreSegnali, NULL);
+    if(pthread_join(t[i], NULL) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
+  if(pthread_join(tGestoreSegnali, NULL) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
 
   //chiusura connessioni
 
   //chiusura connessioni pipe
   for(int i = 0; i < numWorkers; i++) {
-    close(p[i][0]);
-    close(p[i][1]);
+    ec_meno1((close(p[i][0])), "close");
+    ec_meno1((close(p[i][1])), "close");
+    //close(p[i][0]);
+    //close(p[i][1]);
     FD_CLR(p[i][0], &set);
   }
-  close(psegnali[0]);
-  close(psegnali[1]);
+  ec_meno1((close(psegnali[0])), "close");
+  ec_meno1((close(psegnali[1])), "close");
+  //close(psegnali[0]);
+  //close(psegnali[1]);
   FD_CLR(psegnali[0], &set); //chiusura pipe segnali
 
   //chiusura connessioni attive
   for(int i = fdmax;i >= 0; --i) {
     if(FD_ISSET(i, &set)) {
-      fprintf(stderr, "sto chiudendo la connessione %d\n", i);
-      close(i);
+      fprintf(stderr, "Sono il main, sto chiudendo la connessione %d\n", i);
+      //close(i);
+      ec_meno1((close(i)), "close");
     }
   }
   cleanup();
-  fprintf(stderr, "sono fuori dal for\n");
+  atexit(cleanup);
+  //fprintf(stderr, "sono fuori dal for\n");
   //sleep(3);
   //chiusura socket, pipe
 }
