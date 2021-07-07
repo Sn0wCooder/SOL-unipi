@@ -176,7 +176,7 @@ Queue* parser(int argc, char* argv[]) {
             //int num = atoi(&optarg[strlen(optarg) - 1]);
             insert(&q, 'w', dirname, num);
             //printf("%s %d\n", dirname, num);
-            printQueue(q);
+            //printQueue(q);
 
             free(arg);
             break;
@@ -214,7 +214,7 @@ Queue* parser(int argc, char* argv[]) {
               }
               free(arg);
               seenr = 1;
-              printQueue(q);
+              //printQueue(q);
               //printf("\n\n\n");
               break;
             }
@@ -247,7 +247,7 @@ Queue* parser(int argc, char* argv[]) {
             insert(&q, 'R', NULL, nfacoltativo);
             //sleep(1);
             //printf("caso R %d\n", nfacoltativo);
-            printQueue(q);
+            //printQueue(q);
             break;
         }
         case 'd': {

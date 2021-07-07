@@ -14,6 +14,7 @@
 //#include <libc.h>
 #include <sys/un.h>
 #include <ctype.h>
+#include <pthread.h>
 
 
 int isNumber(const char* s) {
@@ -31,4 +32,26 @@ int isNumber(const char* s) {
     return 1;   // successo
   }
   return 0;   // non e' un numero
+}
+
+void Pthread_mutex_lock(pthread_mutex_t *mtx) {
+  int err;
+  if ( ( err=pthread_mutex_lock(mtx)) != 0 ) {
+    errno=err;
+    perror("pthread_mutex_lock");
+    exit(EXIT_FAILURE);
+    //pthread_exit((void*)errno);
+  }
+   //else printf(”locked ”);
+}
+
+void Pthread_mutex_unlock(pthread_mutex_t *mtx) {
+  int err;
+  if ( ( err=pthread_mutex_unlock(mtx)) != 0 ) {
+     errno=err;
+     perror("pthread_mutex_unlock");
+     exit(EXIT_FAILURE);
+     //pthread_exit(errno);
+  }
+   //else printf(”unlocked ”);
 }

@@ -5,12 +5,14 @@
 #include <pthread.h>
 
 #include "queue.h"
+#include "util.h"
 
 //#ifndef QUEUE_H_
 //#define QUEUE_H_
 
 Queue* initQueue() { //inizializza una coda vuota
-  Queue *q = malloc(sizeof(Queue));
+  Queue *q;
+  ec_null((q = malloc(sizeof(Queue))), "malloc");
   //Node n = malloc(sizeof(Node));
   q->head = NULL;
   q->tail = NULL;
@@ -18,14 +20,17 @@ Queue* initQueue() { //inizializza una coda vuota
   return q;
 }
 
-void push(Queue **q, void* el) { //inserimento in coda in una FIFO
-  Node *n = malloc(sizeof(Node));
+int push(Queue **q, void* el) { //inserimento in coda in una FIFO
+  Node *n;
+  ec_null((n = malloc(sizeof(Node))), "malloc");
+  if(*q == NULL)
+    return -1;
   n->data = el;
   n->next = NULL;
-  fprintf(stderr, "ciao1\n");
+  //fprintf(stderr, "ciao1\n");
   //inserimento in coda
   if((*q)->len == 0) { //inserimento in coda vuota
-    fprintf(stderr, "coda vuota\n");
+    //fprintf(stderr, "coda vuota\n");
 
     (*q)->head = n;
     (*q)->tail = n;
@@ -37,6 +42,7 @@ void push(Queue **q, void* el) { //inserimento in coda in una FIFO
     (*q)->tail = n;
     (*q)->len++; // = *q->len + 1;
   }
+  return 0;
 }
 
 void* returnFirstEl(Queue *q) {

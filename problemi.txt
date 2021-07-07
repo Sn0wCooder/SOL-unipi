@@ -3,3 +3,7 @@ parser non funziona nel client
 modificare stderr, stdout
 togliere if(verbose) negli errori
 define O_CREATE
+quando stampo la coda nel server?
+pthread_mutex_init da vedere se da errore
+FD_SET da errori?
+nella relazione scrivere che la openfile fallita per i duplicati non è un errore: la prima volta fallisce (perchè passiamo crea + lock, ma il file esiste già) e la seconda volta fa bene (flag open, senza crea)

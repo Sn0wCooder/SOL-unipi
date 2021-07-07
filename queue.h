@@ -19,7 +19,7 @@ typedef struct _Queue {
     pthread_cond_t      cond;
 } Queue;
 
-void push(Queue **q, void* el);
+int push(Queue **q, void* el);
 Queue* initQueue();
 void* pop(Queue **q);
 void* pop2(Queue **q);

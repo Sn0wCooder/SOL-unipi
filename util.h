@@ -1,6 +1,10 @@
-
+#include <sys/types.h>
+     #include <sys/uio.h>
+     #include <unistd.h>
 
 int isNumber(const char* s);
+void Pthread_mutex_lock(pthread_mutex_t *mtx);
+void Pthread_mutex_unlock(pthread_mutex_t *mtx);
 
 static inline int writen(long fd, void *buf, size_t size);
 static inline int readn(long fd, void *buf, size_t size);

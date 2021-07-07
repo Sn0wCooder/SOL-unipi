@@ -19,6 +19,7 @@
 #include <ctype.h>
 
 #include "queue.h"
+#include "util.h"
 
 //"nomeInfo valore"
 //"spazio 1000"
@@ -67,69 +68,19 @@ typedef struct _file {
   pthread_mutex_t lock;
 } fileRAM;
 
-static inline int readn(long fd, void *buf, size_t size) {
-    size_t left = size;
-    int r;
-    char *bufptr = (char*)buf;
-    while(left>0) {
-  if ((r=read((int)fd ,bufptr,left)) == -1) {
-      if (errno == EINTR) continue;
-      return -1;
-  }
-  if (r == 0) return 0;   // EOF
-        left    -= r;
-  bufptr  += r;
-    }
-    return size;
-}
-
-/** Evita scritture parziali
- *
- *   \retval -1   errore (errno settato)
- *   \retval  0   se durante la scrittura la write ritorna 0
- *   \retval  1   se la scrittura termina con successo
- */
-static inline int writen(long fd, void *buf, size_t size) {
-    size_t left = size;
-    int r;
-    char *bufptr = (char*)buf;
-    while(left>0) {
-  if ((r=write((int)fd ,bufptr,left)) == -1) {
-      if (errno == EINTR) continue;
-      return -1;
-  }
-  if (r == 0) return 0;
-        left    -= r;
-  bufptr  += r;
-    }
-    return 1;
-}
-
 
 typedef struct msg {
     int len;
     char *str;
 } msg_t;
 
-void cleanup() {
-  unlink(SockName);
-}
-
-int isNumber (char* s) {
-  int ok = 1;
-  int len = strlen(s);
-  int i = 0;
-  while(ok && i < len) {
-    if(!isdigit(s[i]))
-      ok = 0;
-    i++;
-  }
-  return ok;
+int cleanup() {
+  return unlink(SockName);
 }
 
 int updatemax(fd_set set, int fdmax) {
-  fprintf(stderr, "sono nell'updatemax\n");
-  for(int i=(fdmax-1);i>=0;--i)
+  //fprintf(stderr, "sono nell'updatemax\n");
+  for(int i = (fdmax - 1);i >= 0; --i)
 	 if (FD_ISSET(i, &set))
     return i;
     //assert(1==0);
@@ -159,13 +110,12 @@ void parser(void) {
   //int numeroFile = 0;
   //int numWorkers = 0;
   //char* SockName;
-  char* buffer = malloc(sizeof(char) * MAXBUFFER);
+  char* buffer;
+  ec_null((buffer = malloc(sizeof(char) * MAXBUFFER)), "malloc");
   FILE* p;
   //fprintf(stderr,"NON abbiamo aperto il file\n");
-  if((p = fopen(CONFIGFILE, "r")) == NULL) {
-        //gestione dell'errore
-    perror("fopen");
-  }
+  ec_null((p = fopen(CONFIGFILE, "r")), "fopen");
+
   //fprintf(stderr, "abbiamo aperto il file\n");
   while(fgets(buffer, MAXBUFFER, p)) {
     //fprintf(stderr, "ecco il buffer: %s\n", buffer);
@@ -174,11 +124,12 @@ void parser(void) {
             //tokenizzo la stringa e vedo il numero di virgole
     save = NULL;
     token = strtok_r(buffer, " ",  &save);
-    char** tmp = malloc(sizeof(char*) * 2);
+    char** tmp;
+    ec_null((tmp = malloc(sizeof(char*) * 2)), "malloc");
     i = 0;
     while(token) {
       //fprintf(stderr, "sto processando %s\n", token);
-      tmp[i] = malloc(sizeof(char) * MAXSTRING);
+      ec_null((tmp[i] = malloc(sizeof(char) * MAXSTRING)), "malloc");
       strncpy(tmp[i], token, strlen(token) - i); //se è il secondo elemento (i = i) non deve prendere il newline finale,
       token = strtok_r(NULL, " ", &save);
       i++;
@@ -209,7 +160,8 @@ void parser(void) {
       }
     }
     if(strcmp(tmp[0], SOC) == 0) {
-      SockName = malloc(sizeof(char) * strlen(tmp[1]));
+
+      ec_null((SockName = malloc(sizeof(char) * strlen(tmp[1]))), "malloc");
       strncpy(SockName, tmp[1], strlen(tmp[1]));
       //numeroFile = atoi(tmp[1]);
     }
@@ -226,7 +178,7 @@ void parser(void) {
   free(tmp[1]);
   free(tmp);
   }
-  fclose(p);
+  if(fclose(p) != 0) { perror("fclose"); exit(EXIT_FAILURE); }
 
 
 
@@ -237,10 +189,12 @@ void parser(void) {
     exit(EXIT_FAILURE);
   }
   //fprintf(stderr,"abbiamo chiuso il file\n");
-  fprintf(stderr,"spazio: %d\n", spazio);
-  fprintf(stderr,"numeroFile: %d\n", numeroFile);
-  fprintf(stderr,"SockName: %s\n", SockName);
-  fprintf(stderr,"numWorkers: %d\n", numWorkers);
+  //if(verbose) {
+  fprintf(stdout,"Spazio: %d\n", spazio);
+  fprintf(stdout,"numeroFile: %d\n", numeroFile);
+  fprintf(stdout,"SockName: %s\n", SockName);
+  fprintf(stdout,"numWorkers: %d\n", numWorkers);
+  //}
 }
 
 void printQueueFiles(Queue *q) {
@@ -255,6 +209,11 @@ void printQueueFiles(Queue *q) {
 
 Node* fileExistsInServer(Queue *q, char* nomefile) {
   //pthread_mutex_lock(&mutexQueueFiles);
+  if(q == NULL || nomefile == NULL) {
+    errno = EINVAL;
+    perror("fileExistsInServer");
+    exit(EXIT_FAILURE);
+  }
   Node* tmp = q->head;
   fileRAM *no = NULL;
   while(tmp != NULL) {
@@ -272,17 +231,25 @@ Node* fileExistsInServer(Queue *q, char* nomefile) {
 
 static void* threadF(void* arg) {
   int numthread = *(int*)arg;
-  fprintf(stderr, "num thread %d\n", numthread);
+  fprintf(stdout, "Sono il thread %d\n", numthread);
   //fprintf(stderr, "ciao\n");
   while(1) {
-    pthread_mutex_lock(&mutexQueueClient);
-    while(queueClient->len == 0) {
-      pthread_cond_wait(&condQueueClient, &mutexQueueClient);
-      fprintf(stderr, "sono sveglio (num thread %d)!\n", numthread);
+    Pthread_mutex_lock(&mutexQueueClient);
+    while(queueClient->len == 0 && !rsigint) {
+      if(pthread_cond_wait(&condQueueClient, &mutexQueueClient) != 0) { perror("pthread_cond_wait"); exit(EXIT_FAILURE); }
+      fprintf(stdout, "Sono sveglio (num thread %d)!\n", numthread);
+      }
+    //gestione segnali
+    //fprintf(stderr, "ricevuto segnale\n");
+    if(rsigint == 1) {
+      Pthread_mutex_unlock(&mutexQueueClient);
+      fprintf(stderr, "Sono il thread %d e ho ricevuto un segnale\n", numthread);
+      break;
     }
+
     ComandoClient* tmp = pop(&queueClient);
     //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
-    pthread_mutex_unlock(&mutexQueueClient);
+    Pthread_mutex_unlock(&mutexQueueClient);
 
 
     //fprintf(stderr, "ciaoyguyj\n");
@@ -290,7 +257,7 @@ static void* threadF(void* arg) {
     char comando = tmp->comando;
     char* parametro = tmp->parametro;
 
-    fprintf(stderr, "connfd %ld, comando %c, parametro %s\n", connfd, comando, parametro);
+    fprintf(stdout, "Sto eseguendo il comando %c che ha parametro %s del connfd %ld\n", comando, parametro, connfd);
     //print
     //char* risposta = malloc(sizeof(char) * MAXBUFFER);
     //int lenRisposta;
@@ -299,26 +266,30 @@ static void* threadF(void* arg) {
     //POSSIBILI COMANDI PASSATI
     switch(comando) {
       case 'W': { //richiesta di scrittura
+        fprintf(stdout, "Ho ricevuto un comando di scrittura del file %s\n", parametro);
         //fprintf(stderr, "sono nello writch\n");
-        pthread_mutex_lock(&mutexQueueFiles);
+        Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
-        pthread_mutex_unlock(&mutexQueueFiles);
+        Pthread_mutex_unlock(&mutexQueueFiles);
 
         int ris = 0;
         if(esiste == NULL) { //errore: il file non esiste
           ris = -1;
-          if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+          //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+          SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
         } else { //file esiste
           fileRAM *newfile = esiste->data;
-          pthread_mutex_lock(&newfile->lock);
+          Pthread_mutex_lock(&newfile->lock);
           if(newfile->is_locked != connfd) { //file eistse ma non aperto dal client
             ris = -1;
           }
-          if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+          //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+          SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
 
           if(ris != -1) {
             int lentmp;
-            notused = readn(connfd, &lentmp, sizeof(int));
+            SYSCALL_EXIT("readn", notused, readn(connfd, &lentmp, sizeof(int)), "readn", "");
+            //notused = readn(connfd, &lentmp, sizeof(int));
             int cista = 1; //ci sta nel server fino a prova contraria
             if(lentmp > spazio || lentmp + newfile->length > spazio) { //non lo memorizza proprio
               //il secondo controllo dopo l'or è per vedere se l'append di un file non ci sta nel server
@@ -329,13 +300,15 @@ static void* threadF(void* arg) {
                 removeFromQueue(&queueFiles, esiste);
               cista = 0;
             }
-            if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
+            //if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
+            SYSCALL_EXIT("writen", notused, writen(connfd, &cista, sizeof(int)), "write", "");
+
             if(cista) {
               //fprintf(stderr, "UEEEEEEE\n");
               fileRAM *fileramtmptrash;
-              pthread_mutex_lock(&mutexQueueFiles);
+              Pthread_mutex_lock(&mutexQueueFiles);
               while(spazioOccupato + lentmp > spazio) { //deve iniziare ad espellere file
-                fprintf(stderr, "il server è pieno (di spazio)\n");
+                fprintf(stderr, "Il server è pieno (di spazio). Devo espellere file.\n");
                 fileRAM *firstel = returnFirstEl(queueFiles);
                 if(newfile != firstel) { //non rimuove il primo elemento perchè è proprio quello che dobbiamo inserire
                   fileramtmptrash = pop(&queueFiles);
@@ -348,13 +321,15 @@ static void* threadF(void* arg) {
               }
               //fprintf(stderr, "Il file ci sta! :D\n");
               spazioOccupato+=lentmp;
-              pthread_mutex_unlock(&mutexQueueFiles);
+              Pthread_mutex_unlock(&mutexQueueFiles);
 
-              char* buftmp = malloc(sizeof(char) * lentmp);
+              char* buftmp;
+              ec_null((buftmp = malloc(sizeof(char) * lentmp)), "malloc");
 
               //newfile->buffer = malloc(sizeof(char) * newfile->length);
-              if (readn(connfd, buftmp, lentmp * sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
-              fprintf(stderr, "length file %d\n", lentmp);
+              SYSCALL_EXIT("readn", notused, readn(connfd, buftmp, lentmp * sizeof(char)), "read", "");
+              //if (readn(connfd, buftmp, lentmp * sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
+              //fprintf(stderr, "length file %d\n", lentmp);
 
               //ora dobbiamo fare la scrittura
 
@@ -363,79 +338,86 @@ static void* threadF(void* arg) {
                 newfile->buffer = buftmp;
               } else { //file già pieno, appendToFile
                 fprintf(stderr, "scrittura in append\n");
-                newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length));
+                //newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length));
+                ec_null((newfile->buffer = realloc(newfile->buffer, sizeof(char) * (lentmp + newfile->length))), "realloc");
                 for(int i = 0; i < lentmp; i++)
                   newfile->buffer[i + newfile->length] = buftmp[i];
                 newfile->length+=lentmp;
               }
               ris = 0; //tutto bene
 
-              fprintf(stderr, "risposta %d\n", ris);
+              //fprintf(stderr, "risposta %d\n", ris);
               printQueueFiles(queueFiles);
 
-
-              if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+              SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
+              //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
             }
           }
-          pthread_mutex_unlock(&newfile->lock);
+          Pthread_mutex_unlock(&newfile->lock);
         }
 
 
         break;
       }
       case 'c': {
-        pthread_mutex_lock(&mutexQueueFiles);
+        fprintf(stdout, "Ho ricevuto un comando di cancellazione del file %s\n", parametro);
+        Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
 
         int risposta;
         if(esiste == NULL) {
-          pthread_mutex_unlock(&mutexQueueFiles);
-          fprintf(stderr, "errore, file %s NON rimosso dal server (non esisteva)\n", parametro);
+          Pthread_mutex_unlock(&mutexQueueFiles);
+          fprintf(stderr, "Errore: file %s NON rimosso dal server (non esisteva)\n", parametro);
           risposta = -1;
         } else { //file esiste
           fileRAM *tmpfileramtrash = esiste->data;
           if(tmpfileramtrash->is_locked != connfd) { //file esiste ma non lockato
-            fprintf(stderr, "File %s non rimosso dal server perchè non aperto dal client\n", parametro);
+            fprintf(stderr, "Errore: file %s non rimosso dal server perchè non aperto dal client\n", parametro);
             risposta = -1;
           } else { //file esiste e lockato, deve essere rimosso
             spazioOccupato-= tmpfileramtrash->length;
             risposta = removeFromQueue(&queueFiles, esiste);
-            fprintf(stderr, "file %s rimosso con successo dal server\n", parametro);
+            fprintf(stdout, "File %s rimosso con successo dal server\n", parametro);
           }
-          pthread_mutex_unlock(&mutexQueueFiles);
+          Pthread_mutex_unlock(&mutexQueueFiles);
 
         }
         printQueueFiles(queueFiles);
-        if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
+        SYSCALL_EXIT("writen", notused, writen(connfd, &risposta, sizeof(int)), "write", "");
+        //if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
         break;
       }
       case 'r': {
-        fprintf(stderr, "Ho ricevuto un comando di lettura!\n");
-        pthread_mutex_lock(&mutexQueueFiles);
+        fprintf(stdout, "Ho ricevuto un comando di lettura del file %s\n", parametro);
+        Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
         int len; //RISPOSTA che ci dice se è tutto ok o no
         if(esiste != NULL) { //file esistente nel server
           fileRAM *filetmp = esiste->data;
-          pthread_mutex_lock(&filetmp->lock);
-          pthread_mutex_unlock(&mutexQueueFiles);
+          Pthread_mutex_lock(&filetmp->lock);
+          Pthread_mutex_unlock(&mutexQueueFiles);
           if(filetmp->is_locked == connfd) { //file aperto da quel client
             len = filetmp->length;
             char* buf = filetmp->buffer;
             //fprintf(stderr, "sto inserendo %d\n", len);
-            if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
-            if (writen(connfd, buf, len * sizeof(char))<=0) { perror("x"); }
-            fprintf(stderr, "file %s letto con successo dal server\n", parametro);
+            SYSCALL_EXIT("writen", notused, writen(connfd, &len, sizeof(int)), "write", "");
+            SYSCALL_EXIT("writen", notused, writen(connfd, buf, len * sizeof(char)), "write", "");
+            //if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
+            //if (writen(connfd, buf, len * sizeof(char))<=0) { perror("x"); }
+            fprintf(stdout, "File %s letto con successo dal server\n", parametro);
           } else { //file non aperto da quel client
             len = -1;
-            if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
-            fprintf(stderr, "file %s NON letto dal server, non aperto da quel client\n", parametro);
+            SYSCALL_EXIT("writen", notused, writen(connfd, &len, sizeof(int)), "write", "");
+            //if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
+            fprintf(stderr, "Errore: file %s NON letto dal server perchè non aperto dal client\n", parametro);
           }
-          pthread_mutex_unlock(&filetmp->lock);
+          Pthread_mutex_unlock(&filetmp->lock);
         } else { //ERRORE: file non trovato nel server
-          pthread_mutex_unlock(&mutexQueueFiles);
+          Pthread_mutex_unlock(&mutexQueueFiles);
           len = -1;
-          if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
-          fprintf(stderr, "errore, file %s NON letto dal server (non esisteva)\n", parametro);
+          SYSCALL_EXIT("writen", notused, writen(connfd, &len, sizeof(int)), "write", "");
+          //if (writen(connfd, &len, sizeof(int))<=0) { perror("c"); }
+          fprintf(stderr, "Errore: file %s NON letto dal server (non esisteva)\n", parametro);
         }
         break;
       }
@@ -449,55 +431,63 @@ static void* threadF(void* arg) {
           numDaLeggere = atoi(parametro);
         if(numDaLeggere <= 0)
           numDaLeggere = queueFiles->len;
-        if (writen(connfd, &numDaLeggere, sizeof(int))<=0) { perror("c"); }
+        SYSCALL_EXIT("writen", notused, writen(connfd, &numDaLeggere, sizeof(int)), "write", "");
+        //if (writen(connfd, &numDaLeggere, sizeof(int))<=0) { perror("c"); }
         Node* nodetmp = queueFiles->head;
         fileRAM *fileramtmp;
         char* buftmp;
         for(int i = 0; i < numDaLeggere; i++) {
           fileramtmp = nodetmp->data;
-          buftmp = malloc(sizeof(char) * strlen(fileramtmp->nome));
+          ec_null((buftmp = malloc(sizeof(char) * strlen(fileramtmp->nome))), "malloc");
           strcpy(buftmp, fileramtmp->nome);
           int buftmplen = strlen(buftmp);
-          if (writen(connfd, &buftmplen, sizeof(int))<=0) { perror("c"); }
-          if (writen(connfd, buftmp, buftmplen * sizeof(char))<=0) { perror("x"); }
-          fprintf(stderr, "sto mandando il file %s al client\n", buftmp);
+          SYSCALL_EXIT("writen", notused, writen(connfd, &buftmplen, sizeof(int)), "write", "");
+          SYSCALL_EXIT("writen", notused, writen(connfd, buftmp, buftmplen * sizeof(char)), "write", "");
+          //if (writen(connfd, &buftmplen, sizeof(int))<=0) { perror("c"); }
+          //if (writen(connfd, buftmp, buftmplen * sizeof(char))<=0) { perror("x"); }
+          //fprintf(stdout, "Ho mandato il file %s al client\n", buftmp);
           free(buftmp);
           nodetmp = nodetmp->next;
         }
         break;
       }
       case 'o': { //openFile
-        fprintf(stderr, "ho ricevuto un comando di esistenza di un file %s nel server\n", parametro);
+        fprintf(stderr, "ho ricevuto un comando di esistenza del file %s nel server\n", parametro);
         int risposta;
-        pthread_mutex_lock(&mutexQueueFiles);
+        Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
         /*if(esiste == NULL) //il file non esiste
           risposta = -1;
         else //il file esiste
           risposta = 0;*/
         int flags;
-        if (readn(connfd, &flags, sizeof(int))<=0) { fprintf(stderr, "sbagliato2\n"); }
-        fprintf(stderr, "codice flags %d\n", flags);
+        SYSCALL_EXIT("readn", notused, readn(connfd, &flags, sizeof(int)), "read", "");
+        //if (readn(connfd, &flags, sizeof(int))<=0) { fprintf(stderr, "sbagliato2\n"); }
+        //fprintf(stderr, "codice flags %d\n", flags);
         if(esiste == NULL && flags == 0) //deve aprire il file ma non esiste, errore
           risposta = -1;
         else if(esiste == NULL && flags == 1) { //deve creare e aprire il file (che non esiste)
           if(queueFiles->len + 1 > numeroFile) { //deve iniziare ad espellere file
-            fprintf(stderr, "il server è pieno (di numero), cancello un file\n");
+            fprintf(stdout, "Il server è pieno (di numero file), ne cancello uno\n");
             fileRAM *fileramtmptrash = pop(&queueFiles);
-            fprintf(stderr, "Sto espellendo il file %s dal server\n", fileramtmptrash->nome);
+            fprintf(stdout, "Sto espellendo il file %s dal server\n", fileramtmptrash->nome);
 
             //vanno fatte FREE
           }
 
-          fileRAM *newfile = malloc(sizeof(fileRAM));
+          fileRAM *newfile;
+          ec_null((newfile = malloc(sizeof(fileRAM))), "malloc");
+          //fileRAM *newfile = malloc(sizeof(fileRAM));
           pthread_mutex_init(&newfile->lock, NULL);
-          newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1));
+          ec_null((newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1))), "malloc");
+          //newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1));
           strcpy(newfile->nome, basename(parametro));
           newfile->nome[strlen(basename(parametro))] = '\0';
           newfile->length = 0;
           newfile->buffer = NULL;
           newfile->is_locked = connfd;
-          push(&queueFiles, newfile);
+          ec_meno1((push(&queueFiles, newfile)), "push");
+          //push(&queueFiles, newfile);
           risposta = 0;
         }
         else if(esiste != NULL && flags == 0) { //deve aprire il file, che esiste già
@@ -509,33 +499,35 @@ static void* threadF(void* arg) {
             risposta = 0;
           }
         } else if(esiste != NULL && flags == 1) { //deve creare e aprire il file, che esiste già, errore
-          risposta = -1;
+          risposta = -2;
         }
-        pthread_mutex_unlock(&mutexQueueFiles);
-        if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
-        fprintf(stderr, "ho finito la open di %s\n", parametro);
+        Pthread_mutex_unlock(&mutexQueueFiles);
+        SYSCALL_EXIT("writen", notused, writen(connfd, &risposta, sizeof(int)), "write", "");
+        //if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
+        fprintf(stdout, "Ho aperto con successo il file %s\n", parametro);
         break;
       }
       case 'z': { //closeFile
         int ris;
-        pthread_mutex_lock(&mutexQueueFiles);
+        Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
         if(esiste == NULL) { //file da chiudere non esiste nel server
-          pthread_mutex_unlock(&mutexQueueFiles);
+          Pthread_mutex_unlock(&mutexQueueFiles);
           ris = -1;
         } else { //file da chiudere esiste nel server
           fileRAM *fileramtmp = esiste->data;
-          pthread_mutex_lock(&fileramtmp->lock);
+          Pthread_mutex_lock(&fileramtmp->lock);
           if(fileramtmp->is_locked != connfd) { //errore: file non aperto da quel client
             ris = -1;
           } else { //chiudo il file
             fileramtmp->is_locked = -1;
             ris = 0; //tutto ok
           }
-          pthread_mutex_unlock(&fileramtmp->lock);
-          pthread_mutex_unlock(&mutexQueueFiles);
+          Pthread_mutex_unlock(&fileramtmp->lock);
+          Pthread_mutex_unlock(&mutexQueueFiles);
         }
-        if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
+        SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
+        //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
         break;
       }
     }
@@ -551,10 +543,10 @@ static void* threadF(void* arg) {
     //IMPORTANTE: ALLA FINE DELLA RICHIESTA RIAGGIUNGERE ALL'FD_SET
     FD_SET(connfd, &set);
     //FD_SET(p[*numthread][1], &set); //devo capire dove rimettere questa riga di codice, perchè così non va
-    fprintf(stderr, "num thread %d, connfd %ld\n", numthread, connfd);
+    //fprintf(stderr, "num thread %d, connfd %ld\n", numthread, connfd);
     write(p[numthread][1], "finito", 6);
 
-    fprintf(stderr, "ho finito la scrittura, connfd %ld\n", connfd);
+    //fprintf(stderr, "ho finito la scrittura, connfd %ld\n", connfd);
 
 
     /*fprintf(stderr, "comando %c resto del file passato %s\n", comando, str.str);
@@ -565,6 +557,8 @@ static void* threadF(void* arg) {
     free(str.str);*/
 
   }
+  fprintf(stderr, "Sto uscendo dal thread %d\n", numthread);
+  //cleanup
   return NULL;
 }
 
@@ -627,7 +621,7 @@ int main(int argc, char* argv[]) {
   if(pipe(psegnali) == -1) { perror("pipe"); }
   //close(psegnali[1]);
 
-  numWorkers = 3;
+  numWorkers = 6;
   cleanup();
   atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
@@ -663,6 +657,7 @@ int main(int argc, char* argv[]) {
 
 
   int listenfd;
+  int nattivi = 0; //numero connessioni attive
 
   //SYSCALL_EXIT("socket", listenfd, socket(AF_UNIX, SOCK_STREAM, 0), "socket", "");
   listenfd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -705,6 +700,7 @@ int main(int argc, char* argv[]) {
 // copio il set nella variabile temporanea per la select
     //fprintf(stderr, "sono nel for in alto\n");
     tmpset = set;
+    fprintf(stderr, "totale connessioni attive prima della select: %d\n", nattivi);
     if (select(fdmax+1, &tmpset, NULL, NULL, NULL) == -1) { //quando esco dalla select, sono sicuro che almeno uno dei file nella set ha qualcosa da leggere, sia accettare una nuova connessione che nuova richiesta dai client
       //in tmpset a questo punto abbiamo solo le cose effettivamente modificate
       perror("select");
@@ -721,6 +717,7 @@ int main(int argc, char* argv[]) {
           //SYSCALL_EXIT("accept", connfd, accept(listenfd, (struct sockaddr*)NULL ,NULL), "accept", "");
           connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
           FD_SET(connfd, &set);  // aggiungo il descrittore al master set
+          nattivi++;
           if(connfd > fdmax)
             fdmax = connfd;  // ricalcolo il massimo
           continue;
@@ -738,6 +735,10 @@ int main(int argc, char* argv[]) {
           /*if(rsigint) { //il segnale ricevuto è SIGINT
 
           }*/
+          if(rsighup) {
+            FD_CLR(listenfd, &set);
+            close(listenfd);
+          }
           continue;
         }
 
@@ -783,15 +784,24 @@ int main(int argc, char* argv[]) {
         msg_t str;
         char comando;
         int r = readn(connfd, &str.len, sizeof(int));
-        if(r == 0) { //il socket è vuoto
+        if(r == 0 || r == -1 || str.len == -1) { //il socket è vuoto
 
-          fprintf(stderr, "client disconnesso\n");
+          fprintf(stderr, "client %ld disconnesso\n", connfd);
+          nattivi--;
+          FD_CLR(connfd, &set);
+          close(connfd);
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
-          if(areThereConnections(tmpset, fdmax))
-            fprintf(stderr, "ci sono connessioni attive\n");
-          else
+          if(nattivi > 0)
+            fprintf(stderr, "ci sono connessioni attive, nattivi %d\n", nattivi);
+          else {
             fprintf(stderr, "non ci sono altre connessioni\n");
+            if(rsighup) {
+              rsigint = 1; //a questo punto si deve comportare come avesse ricevuto un sigint
+              pthread_cond_broadcast(&condQueueClient);
+            }
+
+          }
           //fprintf(stderr, "risultato connessione 3: %d\n", FD_ISSET(3, &set));
           //fd_set setsignal;
           //FD_ZERO(&setsignal);
@@ -863,6 +873,34 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+  //cleanup
+  //fprintf(stderr, "listenfd %d\n", listenfd);
+  //aspetto che i thread terminino
+  for(int i = 0; i < numWorkers; i++)
+    pthread_join(t[i], NULL);
+  pthread_join(tGestoreSegnali, NULL);
+
+  //chiusura connessioni
+
+  //chiusura connessioni pipe
+  for(int i = 0; i < numWorkers; i++) {
+    close(p[i][0]);
+    close(p[i][1]);
+    FD_CLR(p[i][0], &set);
+  }
+  close(psegnali[0]);
+  close(psegnali[1]);
+  FD_CLR(psegnali[0], &set); //chiusura pipe segnali
+
+  //chiusura connessioni attive
+  for(int i = fdmax;i >= 0; --i) {
+    if(FD_ISSET(i, &set)) {
+      fprintf(stderr, "sto chiudendo la connessione %d\n", i);
+      close(i);
+    }
+  }
+  cleanup();
   fprintf(stderr, "sono fuori dal for\n");
+  //sleep(3);
   //chiusura socket, pipe
 }

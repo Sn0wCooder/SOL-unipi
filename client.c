@@ -82,7 +82,7 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     //sleep(3);
     // trying to connect
     int err = -1;
-    fprintf(stderr, "currtime %ld abstime %ld\n", curr_time.tv_sec, abstime.tv_sec);
+    //fprintf(stderr, "currtime %ld abstime %ld\n", curr_time.tv_sec, abstime.tv_sec);
     while( (err = connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr))) == -1
             && curr_time.tv_sec < abstime.tv_sec ) {
         //debug("connect didn't succeed, trying again...\n");
@@ -175,8 +175,7 @@ int closeFile(const char* pathname) {
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
   if(res == -1) {
     errno = EPERM;
-    if(verbose)
-      fprintf(stdout, "closeFile di %s fallita\n", pathname);
+    fprintf(stderr, "closeFile di %s fallita\n", pathname);
   } else { //res = 0
     if(verbose)
       fprintf(stdout, "Ho fatto la closeFile di %s\n", pathname);
@@ -199,10 +198,12 @@ int openFile(const char* pathname, int flags) {
   if(res == 0) {
     if(verbose)
       fprintf(stdout, "Ho fatto la openFile di %s\n", pathname);
+  } else if (res == -2) {
+    fprintf(stderr, "File %s già esistente nel server (openFile fallita)\n", pathname);
+    res = -1;
   } else { //res = -1, errore
     errno = EACCES;
-    if(verbose)
-      fprintf(stdout, "openFile di %s fallita\n", pathname);
+    fprintf(stderr, "openFile di %s fallita\n", pathname);
   }
   return res;
 }
@@ -220,8 +221,7 @@ int removeFile(const char* pathname) {
   SYSCALL_EXIT("readn", notused, readn(sockfd, &res, sizeof(int)), "read", "");
   if(res == -1) { //errore nella removeFile
     errno = EACCES;
-    if(verbose)
-      fprintf(stdout, "removeFile di %s fallita\n", pathname);
+    fprintf(stderr, "removeFile di %s fallita\n", pathname);
     return -1;
   } else {
     if(verbose)
@@ -245,8 +245,7 @@ int readFile(const char* pathname, void** buf, int* size) {
   *size = n;
   if(*size == -1) { //file non esistente
     errno = EPERM;
-    if(verbose)
-      fprintf(stdout, "readFile di %s fallita: il file non esiste\n", pathname);
+    fprintf(stderr, "readFile di %s fallita: il file non esiste\n", pathname);
     *buf = NULL;
     *size = 0;
     return -1;
@@ -329,13 +328,12 @@ int readNFiles(int n, const char* dirname) {
       if(closeFile(arr_buf[i]) == -1) { return -1; }
     } else {
       errno = EACCES;
-      if(verbose)
-        fprintf(stdout, "openFile fallita per il file %s\n", arr_buf[i]);
+      fprintf(stderr, "openFile fallita per il file %s\n", arr_buf[i]);
       return -1;
     }
   }
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-
+  return 0;
 }
 
 int appendToFile(const char* pathname, void* buf, int size) {
@@ -349,8 +347,7 @@ int appendToFile(const char* pathname, void* buf, int size) {
   int cista;
   SYSCALL_EXIT("readn", notused, readn(sockfd, &cista, sizeof(int)), "read", "");
   if(!cista) { //il file non sta nel server materialmente, neanche se si espellessero tutti i file
-    if(verbose)
-      fprintf(stdout, "Il file %s non sta materialmente nel server\n", pathname);
+    fprintf(stderr, "Errore: il file %s non sta materialmente nel server\n", pathname);
       //vanno fatte delle FREE
     return -1;
   }
@@ -360,8 +357,7 @@ int appendToFile(const char* pathname, void* buf, int size) {
   SYSCALL_EXIT("readn", notused, readn(sockfd, &risposta, sizeof(int)), "read", "");
   if(risposta == -1) {
     errno = EACCES;
-    if(verbose)
-      fprintf(stderr, "Errore nella scrittura in append del file %s\n", pathname);
+    fprintf(stderr, "Errore nella scrittura in append del file %s\n", pathname);
   } else {
     if(verbose)
       fprintf(stdout, "File %s scritto correttamente nel server\n", pathname);
@@ -384,8 +380,7 @@ int writeFile(const char* pathname) {
   int risinit;
   SYSCALL_EXIT("readn", notused, readn(sockfd, &risinit, sizeof(int)), "read", "");
   if(risinit == -1) {
-    if(verbose)
-      fprintf(stderr, "Errore: il file %s non esiste o non è stato aperto\n", pathname);
+    fprintf(stderr, "Errore: il file %s non esiste o non è stato aperto\n", pathname);
     return -1;
   } else {
     char *buffer = NULL;
@@ -460,7 +455,7 @@ int EseguiComandoClientServer(NodoComando *tmp) {
     if(openFile(tmp->name, 1) != -1) { //flag: apri e crea
       //fprintf(stderr, "HO FATTO LA OPEN del file %s\n", tmp->name);
       if(writeFile(tmp->name) == -1) { return -1; }
-      if(closeFile(tmp->name) == -1) return -1;
+      if(closeFile(tmp->name) == -1) { return -1; }
     } else if(openFile(tmp->name, 0) != -1) { //flag: apri (magari il file esiste già)
       if(writeFile(tmp->name) == -1) { return -1; }
       if(closeFile(tmp->name) == -1) return -1;
@@ -481,59 +476,63 @@ void printQueuee(Queue *q) {
   NodoComando *no = NULL;
   while(tmp != NULL) {
     no = tmp->data;
-    fprintf(stdout, "sto nome del file è %s, len %ld\n", no->name, strlen(no->name));
+    fprintf(stdout, "Nome del file è %s, len %ld\n", no->name, strlen(no->name));
     tmp = tmp->next;
   }
 }
 
-void visitaRicorsiva(char* name, int *n, Queue **q) {
+int visitaRicorsiva(char* name, int *n, Queue **q) {
   //fprintf(stderr, "sto visitando %s\n", name);
   if(name == NULL)
-    return;
+    return -1;
   char buftmp[1024];
-  if (getcwd(buftmp, 1024)==NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
+  if (getcwd(buftmp, 1024) == NULL) { perror("getcwd");  return -1; }
   //mi sposto nella nuova dir
-  if (chdir(name) == -1) { perror("chdir2"); fprintf(stderr, "errno %d visitando %s\n", errno, name);  exit(EXIT_FAILURE); }
+  if (chdir(name) == -1) { perror("chdir2"); fprintf(stderr, "errno %d visitando %s\n", errno, name);  return -1; }
   DIR *dir;
   struct dirent *entry;
 
   if (!(dir = opendir(name)))
-      return;
+      return -1;
 
   while ((entry = readdir(dir)) != NULL && (*n != 0)) {
     char path[1024];
     if (entry->d_type == DT_DIR) {
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || entry->d_name[0] == '.')
         continue;
-        snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+        if(snprintf(path, sizeof(path), "%s/%s", name, entry->d_name) < 0) { perror("snprintf"); return -1; }
         //printf("%*s[%s]\n", 0, "", entry->d_name);
         //fprintf(stderr, "sto chiamando la funzione su %s\n", entry->d_name);
 
-        visitaRicorsiva(path, n, q);
+        if(visitaRicorsiva(path, n, q) == -1) return -1;
       } else if (entry->d_type == DT_REG) { //ogni file regolare che vede, deve decrementare n
         if(*n > 0 || *n == -1) {
           //snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
-          char *buffer = malloc(sizeof(char) * 1024);
-          realpath(entry->d_name, buffer);
-          printf("%*s- %s, realpath %s, strlen realpath %lu\n", 0, "", entry->d_name, buffer, strlen(buffer));
+          char *buffer;
+          ec_null((buffer = malloc(sizeof(char) * 1024)), "malloc");
+          ec_null((realpath(entry->d_name, buffer)), "realpath");
+          //printf("%*s- %s, realpath %s, strlen realpath %lu\n", 0, "", entry->d_name, buffer, strlen(buffer));
           //buffer[strlen(buffer)] = '\0';
-          NodoComando *new = malloc(sizeof(NodoComando));
+          NodoComando *new;
+          ec_null((new = malloc(sizeof(NodoComando))), "malloc");
           new->cmd = 'W';
-          new->name = malloc(sizeof(char) * (strlen(buffer) + 1));
+          ec_null((new->name = malloc(sizeof(char) * (strlen(buffer) + 1))), "malloc");
           new->name[strlen(buffer)] = '\0';
           new->n = 0;
           strncpy(new->name, buffer, strlen(buffer));
-          push(q, new);
-          fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
+          if(push(q, new) == -1) return -1;
+          //fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
           //printQueuee(*q);
         }
         if(*n > 0)
           (*n)--;
       }
   }
-  closedir(dir);
-  if (chdir(buftmp) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
-
+  //closedir(dir);
+  ec_meno1((closedir(dir)), "closedir");
+  ec_meno1((chdir(buftmp)), "chdir");
+  //if (chdir(buftmp) == -1) { perror("chdir");  exit(EXIT_FAILURE); }
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -554,16 +553,19 @@ int main(int argc, char *argv[]) {
 
   int notused;
   SYSCALL_EXIT("connect", notused, connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)), "connect", "");*/
-  int x = openConnection(socknameconfig, 1000, abstime); //da vedere se da errore
+  ec_meno1((openConnection(socknameconfig, 1000, abstime)), "openConnection");
+  //openConnection(socknameconfig, 1000, abstime); //da vedere se da errore
   abstime.tv_sec = timems / 1000;
   abstime.tv_nsec = (timems % 1000) * 1000000;
-  fprintf(stderr, "sockfd: %ld, risultato openconnection %d\n", sockfd, x);
+  //fprintf(stderr, "sockfd: %ld, risultato openconnection %d\n", sockfd, x);
 
 
   while(q->len > 0) { //finchè ci sono richieste che il parser ha visto
     NodoComando *tmp = pop(&q);
     nanosleep(&abstime, NULL);
-    fprintf(stderr, "FAIL NEIM %s\n", tmp->name);
+    //fprintf(stderr, "FAIL NEIM %s\n", tmp->name);
+    if(verbose)
+      fprintf(stdout, "Sto processando il comando '%c' con parametro %s\n", tmp->cmd, tmp->name);
     if(tmp->cmd == 'w') { //non fa una richiesta al server, ma visita ricorsivamente e fa una richiesta a parte per ogni file
       if(tmp->n == 0)
         tmp->n = -1;
@@ -572,17 +574,20 @@ int main(int argc, char *argv[]) {
       //ho fatto questo perchè almeno la visitaRicorsiva non fa confusione con la directory '.'
       if(strcmp(tmp->name, ".") == 0) {
         free(tmp->name);
-        tmp->name = malloc(sizeof(char) * 1024);
-        if (getcwd(tmp->name, 1024) == NULL) { perror("getcwd");  exit(EXIT_FAILURE); }
+        ec_null((tmp->name = malloc(sizeof(char) * 1024)), "malloc");
+        ec_null((getcwd(tmp->name, 1024)), "getcwd");
       }
 
-      visitaRicorsiva(tmp->name, &(tmp->n), &q);
+      if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) return -1;
     } else {
-      EseguiComandoClientServer(tmp);
+      if(EseguiComandoClientServer(tmp) == -1) return -1;
     }
 
   }
   //openFile("client.cs", 0);
-  closeConnection(socknameconfig);
+  int notused;
+  int n = -1;
+  //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
+  if(closeConnection(socknameconfig) == -1) return -1;
   return 0;
 }
