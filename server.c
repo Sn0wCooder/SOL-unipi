@@ -42,6 +42,21 @@ Queue *queueFiles; //coda dei file memorizzati
 
 int spazioOccupato = 0;
 
+//statistiche
+typedef struct _stats {
+  int numMaxMemorizzato;
+  double spazioMaxOccupato;
+  int numAlgoRimpiazzamento;
+  pthread_mutex_t mutexStats;
+} Statistiche;
+
+Statistiche *s;
+
+/*int numMaxMemorizzato;
+int spazioMaxOccupato;
+int numAlgoRimpiazzamento;
+static pthread_mutex_t mutexStats = PTHREAD_MUTEX_INITIALIZER;*/
+
 int rsigint;
 int rsighup;
 int* psegnali;
@@ -309,6 +324,16 @@ static void* threadF(void* arg) {
               //fprintf(stderr, "UEEEEEEE\n");
               fileRAM *fileramtmptrash;
               Pthread_mutex_lock(&mutexQueueFiles);
+
+              //aggiorno le statistiche
+              Pthread_mutex_lock(&s->mutexStats);
+              /*s->numMaxMemorizzato = 0;
+              s->spazioMaxOccupato = 0;
+              s->numAlgoRimpiazzamento = 0;*/
+              if(spazioOccupato + lentmp > spazio)
+                s->numAlgoRimpiazzamento++;
+              Pthread_mutex_unlock(&s->mutexStats);
+
               while(spazioOccupato + lentmp > spazio) { //deve iniziare ad espellere file
                 fprintf(stderr, "Il server è pieno (di spazio). Devo espellere file.\n");
                 fileRAM *firstel = returnFirstEl(queueFiles);
@@ -347,6 +372,15 @@ static void* threadF(void* arg) {
                 newfile->length+=lentmp;
               }
               ris = 0; //tutto bene
+
+              //aggiorno le statistiche
+              Pthread_mutex_lock(&s->mutexStats);
+              if(queueFiles->len > s->numMaxMemorizzato)
+                s->numMaxMemorizzato = queueFiles->len;
+              if(spazioOccupato > s->spazioMaxOccupato)
+                s->spazioMaxOccupato = spazioOccupato;
+              Pthread_mutex_unlock(&s->mutexStats);
+
 
               //fprintf(stderr, "risposta %d\n", ris);
               printQueueFiles(queueFiles);
@@ -454,7 +488,7 @@ static void* threadF(void* arg) {
         break;
       }
       case 'o': { //openFile
-        fprintf(stderr, "ho ricevuto un comando di esistenza del file %s nel server\n", parametro);
+        fprintf(stderr, "Ho ricevuto un comando di esistenza del file %s nel server\n", parametro);
         int risposta;
         Pthread_mutex_lock(&mutexQueueFiles);
         Node* esiste = fileExistsInServer(queueFiles, parametro);
@@ -466,9 +500,10 @@ static void* threadF(void* arg) {
         SYSCALL_EXIT("readn", notused, readn(connfd, &flags, sizeof(int)), "read", "");
         //if (readn(connfd, &flags, sizeof(int))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //fprintf(stderr, "codice flags %d\n", flags);
-        if(esiste == NULL && flags == 0) //deve aprire il file ma non esiste, errore
+        if(esiste == NULL && flags == 0) { //deve aprire il file ma non esiste, errore
           risposta = -1;
-        else if(esiste == NULL && flags == 1) { //deve creare e aprire il file (che non esiste)
+          //fprintf(stderr, "Errore: il file %s non esiste!\n", parametro);
+        } else if(esiste == NULL && flags == 1) { //deve creare e aprire il file (che non esiste)
           if(queueFiles->len + 1 > numeroFile) { //deve iniziare ad espellere file
             fprintf(stdout, "Il server è pieno (di numero file), ne cancello uno\n");
             fileRAM *fileramtmptrash = pop(&queueFiles);
@@ -480,7 +515,7 @@ static void* threadF(void* arg) {
           fileRAM *newfile;
           ec_null((newfile = malloc(sizeof(fileRAM))), "malloc");
           //fileRAM *newfile = malloc(sizeof(fileRAM));
-          pthread_mutex_init(&newfile->lock, NULL);
+          if(pthread_mutex_init(&newfile->lock, NULL) != 0) { perror("pthread_mutex_init"); exit(EXIT_FAILURE); }
           ec_null((newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1))), "malloc");
           //newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1));
           strcpy(newfile->nome, basename(parametro));
@@ -506,7 +541,10 @@ static void* threadF(void* arg) {
         Pthread_mutex_unlock(&mutexQueueFiles);
         SYSCALL_EXIT("writen", notused, writen(connfd, &risposta, sizeof(int)), "write", "");
         //if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
-        fprintf(stdout, "Ho aperto con successo il file %s\n", parametro);
+        if(risposta == 0)
+          fprintf(stdout, "Ho aperto con successo il file %s\n", parametro);
+        else
+          fprintf(stderr, "Errore: non ho aperto il file %s, codice errore %d\n", parametro, risposta);
         break;
       }
       case 'z': { //closeFile
@@ -606,6 +644,16 @@ static void* tSegnali(void* arg) {
 
 int main(int argc, char* argv[]) {
   parser();
+
+  //inizializzo statistiche
+  ec_null((s = malloc(sizeof(Statistiche))), "malloc");
+  if(pthread_mutex_init(&s->mutexStats, NULL) != 0) { perror("pthread_mutex_init"); exit(EXIT_FAILURE); }
+  Pthread_mutex_lock(&s->mutexStats);
+  s->numMaxMemorizzato = 0;
+  s->spazioMaxOccupato = 0;
+  s->numAlgoRimpiazzamento = 0;
+  Pthread_mutex_unlock(&s->mutexStats);
+
 
 
   //GESTIONE SEGNALI
@@ -834,7 +882,7 @@ int main(int argc, char* argv[]) {
             //fprintf(stderr, "Non ci sono altre connessioni\n");
             if(rsighup) {
               rsigint = 1; //a questo punto si deve comportare come avesse ricevuto un sigint
-              pthread_cond_broadcast(&condQueueClient);
+              if(pthread_cond_broadcast(&condQueueClient) != 0) { perror("pthread_cond_broadcast"); exit(EXIT_FAILURE); }
             }
 
           }
@@ -894,7 +942,7 @@ int main(int argc, char* argv[]) {
         //fprintf(stderr, "parte2\n");
 
         Pthread_mutex_unlock(&mutexQueueClient);
-        pthread_cond_signal(&condQueueClient);
+        if(pthread_cond_signal(&condQueueClient) != 0) { perror("pthread_cond_signal"); exit(EXIT_FAILURE); }
 
 
         /*fprintf(stderr, "comando %c resto del file passato %s\n", comando, str.str);
@@ -949,6 +997,13 @@ int main(int argc, char* argv[]) {
   }
   cleanup();
   atexit(cleanup);
+
+  //stampo le statistiche
+  fprintf(stdout, "\n\nStatistiche del server raggiunte:\n");
+  fprintf(stdout, "Numero massimo di file raggiunti: %d\n", s->numMaxMemorizzato);
+  fprintf(stdout, "Numero massimo di spazio occupato: %.2f MB\n", s->spazioMaxOccupato / 1000000);
+  fprintf(stdout, "Numero di volte che ho eseguito l'algoritmo di rimpiazzamento: %d\n", s->numAlgoRimpiazzamento);
+  printQueueFiles(queueFiles);
   //fprintf(stderr, "sono fuori dal for\n");
   //sleep(3);
   //chiusura socket, pipe

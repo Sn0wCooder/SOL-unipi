@@ -580,7 +580,7 @@ int main(int argc, char *argv[]) {
 
       if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) return -1;
     } else {
-      if(EseguiComandoClientServer(tmp) == -1) return -1;
+      if(EseguiComandoClientServer(tmp) == -1) fprintf(stderr, "Errore nel comando %c con parametro %s\n", tmp->cmd, tmp->name);
     }
 
   }
@@ -588,6 +588,7 @@ int main(int argc, char *argv[]) {
   int notused;
   int n = -1;
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-  if(closeConnection(socknameconfig) == -1) return -1;
+  ec_meno1((closeConnection(socknameconfig)), "closeConnection");
+  //if(closeConnection(socknameconfig) == -1) return -1;
   return 0;
 }

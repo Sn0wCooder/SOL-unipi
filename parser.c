@@ -133,9 +133,10 @@ Queue* parser(int argc, char* argv[]) {
           }
           seenf = 1;
           //insert(&q, 'f', optarg, 0);
-          ec_null((socknameconfig = malloc(sizeof(char) * strlen(optarg))), "malloc");
+          ec_null((socknameconfig = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
           //socknameconfig = malloc(sizeof(char) * strlen(optarg));
           strcpy(socknameconfig, optarg);
+          socknameconfig[strlen(optarg)] = '\0';
           //printf("filename %s\n", optarg);
           //printQueue(q);
           break;
@@ -144,17 +145,19 @@ Queue* parser(int argc, char* argv[]) {
             //printf("guardo w %s\n", optarg);
             //controllare: se ci sono più dirname, se c'è n e se n è un numero
 
-            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
             //arg = malloc(sizeof(char) * strlen(optarg)); //argomento di w
             strncpy(arg, optarg, strlen(optarg)); //lo copio in una variabile temporanea
+            arg[strlen(optarg)] = '\0';
 
             //tokenizzo la stringa e vedo il numero di virgole
             save = NULL;
             token = strtok_r(arg, ",", &save);
             char* dirname; // = malloc(sizeof(char) * strlen(token));
             //dirname = primo token prima della prima virgola
-            ec_null((dirname = malloc(sizeof(char) * strlen(token))), "malloc");
+            ec_null((dirname = malloc(sizeof(char) * (strlen(token) + 1))), "malloc");
             strncpy(dirname, token, strlen(token));
+            dirname[strlen(token)] = '\0';
             int contavirgole = -1;
             char* tmp; //temporanea, in cui sarà salvato l'ultimo token dopo le virgole
             while(token) {
@@ -192,9 +195,10 @@ Queue* parser(int argc, char* argv[]) {
         case 'W': {
             //printf("Sto guardando gli argomenti di -l\n");
 
-            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
             //arg = malloc(sizeof(char) * strlen(optarg));
             strncpy(arg, optarg, strlen(optarg));
+            arg[strlen(optarg)] = '\0';
 
             save = NULL;
             token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
@@ -210,14 +214,17 @@ Queue* parser(int argc, char* argv[]) {
           }
           case 'r': {
               //printf("Sto guardando gli argomenti di -l\n");
+              //fprintf(stderr, "argomento %s\n", optarg);
 
-              ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+              ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
               //arg = malloc(sizeof(char) * strlen(optarg));
               strncpy(arg, optarg, strlen(optarg));
+              arg[strlen(optarg)] = '\0';
 
               save = NULL;
               token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
               while(token) {
+                token[strlen(token)] = '\0';
                 //printf("inserisco %s\n", token);
                 insert(&q, 'r', token, 0);
                 token = strtok_r(NULL, ",", &save);
@@ -263,9 +270,10 @@ Queue* parser(int argc, char* argv[]) {
         case 'd': {
           //fprintf(stderr, "siamo alla d\n");
           //insert(&q, 'd', optarg, 0);
-          ec_null((savefiledir = malloc(sizeof(char) * strlen(optarg))), "malloc");
+          ec_null((savefiledir = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
           //savefiledir = malloc(sizeof(char) * strlen(optarg));
           strcpy(savefiledir, optarg);
+          savefiledir[strlen(optarg)] = '\0';
           //printf("filename %s\n", optarg);
           //printQueue(q);
           break;
@@ -292,9 +300,10 @@ Queue* parser(int argc, char* argv[]) {
         case 'c': {
             //printf("Sto guardando gli argomenti di -l\n");
 
-            ec_null((arg = malloc(sizeof(char) * strlen(optarg))), "malloc");
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
             //arg = malloc(sizeof(char) * strlen(optarg));
             strncpy(arg, optarg, strlen(optarg));
+            arg[strlen(optarg)] = '\0';
 
             save = NULL;
             token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
