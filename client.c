@@ -22,6 +22,8 @@
 
 #define SOCKNAME "ProvaSock.sk"
 #define MAXBUFFER 1000
+#define O_CREATE 1
+#define O_OPEN 0
 long sockfd;
 
 static int add_to_current_time(long sec, long nsec, struct timespec* res){
@@ -158,6 +160,7 @@ int writeCMD(const char* pathname, char cmd) { //manca gestione errore
 
   SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
   SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
+  free(towrite);
   return 0;
 
 }
@@ -283,7 +286,7 @@ int readNFiles(int n, const char* dirname) {
     errno = EINVAL;
     return -1;
   }
-  char* ntmp;
+  char* ntmp; //numero temporaneo da mandare al server
   ec_null((ntmp = malloc(sizeof(char) * 10)), "malloc");
   if(sprintf(ntmp, "%d", n) < 0) {
     perror("snprintf");
@@ -293,7 +296,7 @@ int readNFiles(int n, const char* dirname) {
     errno = EPERM;
     return -1;
   }
-
+  free(ntmp);
   int notused;
   SYSCALL_EXIT("readn", notused, readn(sockfd, &n, sizeof(int)), "read", "");
   int lenpathtmp;
@@ -315,7 +318,7 @@ int readNFiles(int n, const char* dirname) {
     //fprintf(stderr, "elemento %d: %s\n", i, arr_buf[i]);
     void* buffile;
     int sizebufffile;
-    if(openFile(arr_buf[i], 0) != -1) {
+    if(openFile(arr_buf[i], O_OPEN) != -1) {
       if(readFile(arr_buf[i], &buffile, &sizebufffile) == -1) {
         return -1;
       }
@@ -331,9 +334,11 @@ int readNFiles(int n, const char* dirname) {
       fprintf(stderr, "openFile fallita per il file %s\n", arr_buf[i]);
       return -1;
     }
+    free(arr_buf[i]);
   }
+  free(*arr_buf);
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
-  return 0;
+  return n; //ritorna il numero di file letti
 }
 
 int appendToFile(const char* pathname, void* buf, int size) {
@@ -420,8 +425,11 @@ int writeFile(const char* pathname) {
       neq_zero((fclose(f)), "fclose");
     }*/
 
-    if(appendToFile(pathname, bufferFile, length) == -1)
+    if(appendToFile(pathname, bufferFile, length) == -1) {
+      free(bufferFile);
       return -1;
+    }
+    free(bufferFile);
     return 0;
   }
 }
@@ -434,7 +442,7 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   if(tmp->cmd == 'c') {
     if(verbose)
       fprintf(stdout, "File da rimuovere: %s\n", tmp->name);
-    if(openFile(tmp->name, 0) != -1) {
+    if(openFile(tmp->name, O_OPEN) != -1) {
       if(removeFile(tmp->name) == -1) return -1;
     } else { //errore
       return -1;
@@ -442,7 +450,7 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   } else if(tmp->cmd == 'r') {
     if(verbose)
       fprintf(stdout, "Sto leggendo il file %s\n", tmp->name);
-    if(openFile(tmp->name, 0) != -1) {
+    if(openFile(tmp->name, O_OPEN) != -1) {
       void* buf;
       int sizebuff; //col size_t non va
       if(readFile(tmp->name, &buf, &sizebuff) == -1) {
@@ -452,9 +460,10 @@ int EseguiComandoClientServer(NodoComando *tmp) {
           char path[1024];
           if(snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name) < 0) { perror("snprintf"); return -1; }
           //fprintf(stderr, "sto andando a scrivere il file %s in %s\n", tmp->name, path);
-          if(writeBufToDisk(path, buf, sizebuff) == -1) return -1;
+          if(writeBufToDisk(path, buf, sizebuff) == -1) return -1; //da controllare free nel caso errori
           if(closeFile(tmp->name) == -1) return -1;
         }
+        free(buf);
       }
     } else { //errore openFile
       return -1;
@@ -466,11 +475,11 @@ int EseguiComandoClientServer(NodoComando *tmp) {
   } else if(tmp->cmd == 'W') {
     if(verbose)
       fprintf(stdout, "Scrivo il file %s nel server\n", tmp->name);
-    if(openFile(tmp->name, 1) != -1) { //flag: apri e crea
+    if(openFile(tmp->name, O_CREATE) != -1) { //flag: apri e crea
       //fprintf(stderr, "HO FATTO LA OPEN del file %s\n", tmp->name);
       if(writeFile(tmp->name) == -1) { return -1; }
       if(closeFile(tmp->name) == -1) { return -1; }
-    } else if(openFile(tmp->name, 0) != -1) { //flag: apri (magari il file esiste già)
+    } else if(openFile(tmp->name, O_OPEN) != -1) { //flag: apri (magari il file esiste già)
       if(writeFile(tmp->name) == -1) { return -1; }
       if(closeFile(tmp->name) == -1) return -1;
     } else { //errore openFile
@@ -535,6 +544,7 @@ int visitaRicorsiva(char* name, int *n, Queue **q) {
           new->n = 0;
           strncpy(new->name, buffer, strlen(buffer));
           if(push(q, new) == -1) return -1;
+          free(buffer);
           //fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
           //printQueuee(*q);
         }
