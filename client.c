@@ -141,7 +141,7 @@ int closeConnection(const char* sockname){
   return 0;
 }
 
-int writeCMD(const char* pathname, char cmd) { //manca gestione errore
+/*int writeCMD1(const char* pathname, char cmd) { //manca gestione errore
   //fprintf(stderr, )
   if(pathname == NULL){
     errno = EINVAL;
@@ -163,6 +163,27 @@ int writeCMD(const char* pathname, char cmd) { //manca gestione errore
   free(towrite);
   return 0;
 
+}*/
+
+int writeCMD(const char* pathname, char cmd) {
+  //fprintf(stderr, )
+  if(pathname == NULL){
+    errno = EINVAL;
+    return -1;
+  }
+  int notused;
+  char* towrite;
+  ec_null((towrite = malloc(sizeof(char) * strlen(pathname) + 1)), "malloc");
+  //char* towrite = malloc(sizeof(char) * strlen(pathname) + 1);
+  strcpy(towrite, pathname);
+  //towrite[strlen(pathname)]
+  towrite[strlen(pathname)] = '\0';
+  SYSCALL_EXIT("writen", notused, writen(sockfd, &cmd, sizeof(char)), "write", "");
+  int n = strlen(towrite) + 1;
+  SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
+  SYSCALL_EXIT("writen", notused, writen(sockfd, towrite, n * sizeof(char)), "write", "");
+  free(towrite);
+  return 0;
 }
 
 int closeFile(const char* pathname) {
@@ -274,7 +295,7 @@ int writeBufToDisk(const char* pathname, void* buf, int size) {
   int fdfile;
   ec_meno1((fdfile = open(pathname, O_WRONLY | O_APPEND | O_CREAT, 0644)), "open");
   //fprintf(stderr, "file %s, fd file %d, length %ld\n", pathname, fdfile, length);
-  ec_meno1((write(fdfile, buf, size)), "write");
+  ec_meno1((writen(fdfile, buf, size)), "writen");
   //read(fdfile, bufferFile, length);
   //fprintf(stderr, "buffer \n%s\n", (char*)bufferFile);
   ec_meno1((close(fdfile)), "close");
@@ -336,7 +357,7 @@ int readNFiles(int n, const char* dirname) {
     }
     free(arr_buf[i]);
   }
-  free(*arr_buf);
+  free(arr_buf);
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
   return n; //ritorna il numero di file letti
 }
@@ -401,7 +422,7 @@ int writeFile(const char* pathname) {
     //fprintf(stderr, "file %s, fd file %d, length %ld\n", pathname, fdfile, length);
     char* bufferFile; // = malloc(sizeof(char) * length);
     ec_null((bufferFile = malloc(sizeof(char) * length)), "malloc");
-    ec_meno1((read(fdfile, bufferFile, length)), "read");
+    ec_meno1((readn(fdfile, bufferFile, length)), "readn");
     //read(fdfile, bufferFile, length);
     //fprintf(stderr, "buffer \n%s\n", (char*)bufferFile);
     ec_meno1((close(fdfile)), "close");
@@ -597,14 +618,19 @@ int main(int argc, char *argv[]) {
       //trasformo le dir . in directory path complete prima di chiamare la visitaRicorsiva
       //ho fatto questo perchè almeno la visitaRicorsiva non fa confusione con la directory '.'
       if(strcmp(tmp->name, ".") == 0) {
-        free(tmp->name);
+        //free(tmp->name);
         ec_null((tmp->name = malloc(sizeof(char) * 1024)), "malloc");
         ec_null((getcwd(tmp->name, 1024)), "getcwd");
       }
 
       if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) return -1;
+      free(tmp->name);
     } else {
       if(EseguiComandoClientServer(tmp) == -1) fprintf(stderr, "Errore nel comando %c con parametro %s\n", tmp->cmd, tmp->name);
+
+      //pulizia tmp
+      free(tmp->name);
+      free(tmp);
     }
 
   }
@@ -613,6 +639,7 @@ int main(int argc, char *argv[]) {
   int n = -1;
   //SYSCALL_EXIT("writen", notused, writen(sockfd, &n, sizeof(int)), "write", "");
   ec_meno1((closeConnection(socknameconfig)), "closeConnection");
+  free(q);
   //if(closeConnection(socknameconfig) == -1) return -1;
   return 0;
 }

@@ -84,10 +84,10 @@ typedef struct _file {
 } fileRAM;
 
 
-typedef struct msg {
+/*typedef struct msg {
     int len;
     char *str;
-} msg_t;
+} msg_t;*/
 
 void cleanup() {
   unlink(SockName);
@@ -189,9 +189,9 @@ void parser(void) {
       }
     }
 
-  free(tmp[0]);
-  free(tmp[1]);
-  free(tmp);
+    free(tmp[0]);
+    free(tmp[1]);
+    free(tmp);
   }
   if(fclose(p) != 0) { perror("fclose"); exit(EXIT_FAILURE); }
 
@@ -221,7 +221,7 @@ void printQueueFiles(Queue *q) {
     fprintf(stdout, "filename %s, length %ld\n", no->nome, no->length);
     tmp = tmp->next;
   }
-  fprintf(stdout, "Fine stampa coda dei file:\n");
+  fprintf(stdout, "Fine stampa coda dei file\n");
 }
 
 Node* fileExistsInServer(Queue *q, char* nomefile) {
@@ -311,10 +311,14 @@ static void* threadF(void* arg) {
             if(lentmp > spazio || lentmp + newfile->length > spazio) { //non lo memorizza proprio
               //il secondo controllo dopo l'or è per vedere se l'append di un file non ci sta nel server
               fprintf(stderr, "Il file %s è troppo grande (%ld) e non sta materialmente nel server (capienza massima %d)\n", newfile->nome, newfile->length, spazio);
-                //vanno fatte delle FREE
+
                 //vado a scrivere nel socket che il file non ci sta
               if(lentmp > spazio) //se il file non esiste ancora (ha size null)
                 removeFromQueue(&queueFiles, esiste);
+
+              free(newfile->nome);
+              free(newfile);
+              //free(esiste); no, la fa già removefromqueue
               cista = 0;
             }
             //if (writen(connfd, &cista, sizeof(int))<=0) { perror("c"); }
@@ -344,6 +348,10 @@ static void* threadF(void* arg) {
                 }
                 fprintf(stderr, "Sto espellendo il file %s dal server per far spazio al file %s\n", fileramtmptrash->nome, parametro);
                 spazioOccupato-=fileramtmptrash->length;
+                free(fileramtmptrash->nome);
+                if(buffer != NULL) //il buffer potrebbe non esistere
+                  free(fileramtmptrash->buffer);
+                free(fileramtmptrash);
                   //vanno fatte FREE
               }
               //fprintf(stderr, "Il file ci sta! :D\n");
@@ -413,6 +421,10 @@ static void* threadF(void* arg) {
           } else { //file esiste e lockato, deve essere rimosso
             spazioOccupato-= tmpfileramtrash->length;
             risposta = removeFromQueue(&queueFiles, esiste);
+            free(tmpfileramtrash->nome);
+            if(tmpfileramtrash->buffer != NULL)
+              free(tmpfileramtrash->buffer);
+            free(tmpfileramtrash);
             fprintf(stdout, "File %s rimosso con successo dal server\n", parametro);
           }
           Pthread_mutex_unlock(&mutexQueueFiles);
@@ -596,7 +608,8 @@ static void* threadF(void* arg) {
     //str.str="messaggio";
     if (writen(connfd, str.str, str.len*sizeof(char))<=0) { free(str.str); }
     free(str.str);*/
-
+    free(tmp->parametro);
+    free(tmp);
   }
   fprintf(stderr, "Sto uscendo dal thread %d\n", numthread);
   //cleanup
@@ -863,10 +876,11 @@ int main(int argc, char* argv[]) {
 
         FD_CLR(connfd, &set);
 
-        msg_t str;
+        //msg_t str;
         char comando;
-        int r = readn(connfd, &str.len, sizeof(int));
-        if(r == 0 || r == -1 || str.len == -1) { //il socket è vuoto, connessione chiusa
+        int r = readn(connfd, &comando, sizeof(char));
+        //int r = readn(connfd, &str.len, sizeof(int));
+        if(r == 0 || r == -1) { //il socket è vuoto, connessione chiusa
 
           fprintf(stderr, "Client %ld disconnesso\n", connfd);
           nattivi--;
@@ -901,21 +915,25 @@ int main(int argc, char* argv[]) {
           continue;
         }
         if (r<0) { perror("readn"); exit(EXIT_FAILURE); }
-        str.len = str.len - sizeof(char);
+        char* str;
+        int strlength;
+        SYSCALL_EXIT("readn", notused, readn(connfd, &strlength, sizeof(int)), "read", "");
+
+        //str.len = str.len - sizeof(char);
         //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
         //if (readn(connfd, &comando, sizeof(char))<=0) { fprintf(stderr, "sbagliato4\n"); }
-        SYSCALL_EXIT("readn", notused, readn(connfd, &comando, sizeof(char)), "read", "");
+        //SYSCALL_EXIT("readn", notused, readn(connfd, &comando, sizeof(char)), "read", "");
 
 
         //fprintf(stderr, "fin qui, ho letto la lunghezza %d\n", str.len);
         //str.str = calloc((str.len), sizeof(char));
-        ec_null((str.str = calloc((str.len), sizeof(char))), "calloc");
+        ec_null((str = calloc(strlength, sizeof(char))), "calloc");
         /*if (!str.str) {
     	     perror("calloc");
     	      fprintf(stderr, "Memoria esaurita....\n");
     	       //return NULL;
         }*/
-        SYSCALL_EXIT("readn", notused, readn(connfd, str.str, (str.len)*sizeof(char)), "read", "");
+        SYSCALL_EXIT("readn", notused, readn(connfd, str, strlength * sizeof(char)), "read", "");
         //if (readn(connfd, str.str, (str.len)*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //if (readn(connfd, str.str, (str.len - sizeof(char))*sizeof(char))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //togliamo sizeof(char) perchè nella read al comando prima stiamo leggendo già un carattere
@@ -925,11 +943,13 @@ int main(int argc, char* argv[]) {
         ComandoClient *cmdtmp; // = malloc(sizeof(ComandoClient));
         ec_null((cmdtmp = malloc(sizeof(ComandoClient))), "malloc");
         cmdtmp->comando = comando;
-        ec_null((cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1)), "malloc");
+        ec_null((cmdtmp->parametro = malloc(sizeof(char) * (strlen(str) + 1))), "malloc");
         //cmdtmp->parametro = malloc(sizeof(char) * (strlen(str.str)) + 1);
         cmdtmp->connfd = connfd;
-        strcpy(cmdtmp->parametro, str.str);
-        cmdtmp->parametro[strlen(str.str)] = '\0';
+        strcpy(cmdtmp->parametro, str);
+        //int xyz = strlen(str);
+        cmdtmp->parametro[strlen(str)] = '\0';
+        free(str);
         //fprintf(stderr, "il parametro è %s\n", cmdtmp->parametro);
 
         Pthread_mutex_lock(&mutexQueueClient);
@@ -980,15 +1000,19 @@ int main(int argc, char* argv[]) {
     //close(p[i][0]);
     //close(p[i][1]);
     FD_CLR(p[i][0], &set);
+    free(p[i]);
   }
+  free(p);
+  FD_CLR(psegnali[0], &set); //chiusura pipe segnali
   ec_meno1((close(psegnali[0])), "close");
   ec_meno1((close(psegnali[1])), "close");
   //close(psegnali[0]);
   //close(psegnali[1]);
-  FD_CLR(psegnali[0], &set); //chiusura pipe segnali
+  //FD_CLR(psegnali[0], &set); //chiusura pipe segnali
+  free(psegnali);
 
   //chiusura connessioni attive
-  for(int i = fdmax;i >= 0; --i) {
+  for(int i = fdmax; i >= 0; --i) {
     if(FD_ISSET(i, &set)) {
       fprintf(stderr, "Sono il main, sto chiudendo la connessione %d\n", i);
       //close(i);
@@ -1004,6 +1028,30 @@ int main(int argc, char* argv[]) {
   fprintf(stdout, "Numero massimo di spazio occupato: %.2f MB\n", s->spazioMaxOccupato / 1000000);
   fprintf(stdout, "Numero di volte che ho eseguito l'algoritmo di rimpiazzamento: %d\n", s->numAlgoRimpiazzamento);
   printQueueFiles(queueFiles);
+
+  free(arrtmp); //free array numero thread
+  free(t); //free array di thread
+  free(s); //free statistiche
+
+  //free della coda dei file
+  fileRAM* tmpcodafile = pop(&queueFiles);
+  while(tmpcodafile != NULL) {
+    free(tmpcodafile->nome);
+    free(tmpcodafile->buffer);
+    free(tmpcodafile);
+    tmpcodafile = pop(&queueFiles);
+  }
+  free(queueFiles);
+
+  //free della coda dei client (nel caso del SIGINT/SIGQUIT)
+  ComandoClient* tmpcodacomandi = pop(&queueClient);
+  while(tmpcodacomandi != NULL) {
+    free(tmpcodacomandi->parametro);
+    free(tmpcodacomandi);
+    tmpcodacomandi = pop(&queueClient);
+  }
+  free(queueClient);
+
   //fprintf(stderr, "sono fuori dal for\n");
   //sleep(3);
   //chiusura socket, pipe
