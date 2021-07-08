@@ -243,7 +243,7 @@ Queue* parser(int argc, char* argv[]) {
             int nfacoltativo = 0;
             char* nextstring = NULL; //la stringa seguente a -R passata da riga di comando
             if(optind != argc) { //se -R non è l'ultimo argomento passato
-              fprintf(stderr, "optind %d\n",optind);
+              //fprintf(stderr, "optind %d\n",optind);
               nextstring = strdup(argv[optind]);
             }
             //fprintf(stderr, "fin qui tutto OKKKKKK\n");

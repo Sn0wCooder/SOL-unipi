@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <fcntl.h>
 
 #include <sys/un.h>
 #include <ctype.h>
@@ -259,7 +260,6 @@ int readFile(const char* pathname, void** buf, int* size) {
     return 0; //successo
   }
 }
-
 //int writeBufToDisk(const char* dirname, char* filename, char* buf, int len) {
 int writeBufToDisk(const char* pathname, void* buf, int size) {
   //char path[1024];
@@ -268,13 +268,13 @@ int writeBufToDisk(const char* pathname, void* buf, int size) {
     errno = EINVAL;
     return -1;
   }
-  FILE *f;
-  ec_null((f = fopen(pathname, "w")), "fopen");
-  if(fwrite(buf, 1, size, f) < size) {
-    perror("fwrite");
-    return -1;
-  }
-  neq_zero((fclose(f)), "fclose");
+  int fdfile;
+  ec_meno1((fdfile = open(pathname, O_WRONLY | O_APPEND | O_CREAT, 0644)), "open");
+  //fprintf(stderr, "file %s, fd file %d, length %ld\n", pathname, fdfile, length);
+  ec_meno1((write(fdfile, buf, size)), "write");
+  //read(fdfile, bufferFile, length);
+  //fprintf(stderr, "buffer \n%s\n", (char*)bufferFile);
+  ec_meno1((close(fdfile)), "close");
   return 0;
 }
 
@@ -383,20 +383,34 @@ int writeFile(const char* pathname) {
     fprintf(stderr, "Errore: il file %s non esiste o non è stato aperto\n", pathname);
     return -1;
   } else {
-    char *buffer = NULL;
+    /*char *buffer = NULL;
     n = strlen(pathname) + 2;
-    ec_null((buffer = realloc(buffer, n * sizeof(char))), "realloc");
+    ec_null((buffer = realloc(buffer, n * sizeof(char))), "realloc");*/
 
     //usare al posto la open, readn, writen, close
-    FILE *f;
-    ec_null((f = fopen(pathname, "rb")), "fopen");
-    long length;
-    char* bufferFile;
+    struct stat info;
+    ec_meno1((stat(pathname, &info)), "stat");
+    long length = (long)info.st_size;
+    int fdfile;
+    ec_meno1((fdfile = open(pathname, O_RDONLY)), "open");
+    //fprintf(stderr, "file %s, fd file %d, length %ld\n", pathname, fdfile, length);
+    char* bufferFile; // = malloc(sizeof(char) * length);
+    ec_null((bufferFile = malloc(sizeof(char) * length)), "malloc");
+    ec_meno1((read(fdfile, bufferFile, length)), "read");
+    //read(fdfile, bufferFile, length);
+    //fprintf(stderr, "buffer \n%s\n", (char*)bufferFile);
+    ec_meno1((close(fdfile)), "close");
+    //close(fdfile);
+
+
+    /*FILE *f;
+    //ec_null((f = fopen(pathname, "rb")), "fopen");
+    //char* bufferFile;
     if (f) {
       ec_meno1((fseek(f, 0, SEEK_END)), "fseek");
       //fseek (f, 0, SEEK_END);
       //length = ftell(f);
-      ec_meno1((length = ftell(f)), "ftell");
+      //ec_meno1((length = ftell(f)), "ftell");
       ec_meno1((fseek(f, 0, SEEK_SET)), "fseek");
       //fseek (f, 0, SEEK_SET);
       ec_null((bufferFile = malloc(length)), "malloc");
@@ -404,7 +418,7 @@ int writeFile(const char* pathname) {
         fread(bufferFile, 1, length, f);
       }
       neq_zero((fclose(f)), "fclose");
-    }
+    }*/
 
     if(appendToFile(pathname, bufferFile, length) == -1)
       return -1;
