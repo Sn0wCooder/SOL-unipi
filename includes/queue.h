@@ -15,8 +15,6 @@ typedef struct _Queue {
     Node*             head;
     Node*             tail;
     unsigned long       len;
-    pthread_mutex_t     lock;
-    pthread_cond_t      cond;
 } Queue;
 
 int push(Queue **q, void* el);

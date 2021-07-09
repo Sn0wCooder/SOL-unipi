@@ -293,7 +293,7 @@ static void* threadF(void* arg) {
         Pthread_mutex_unlock(&mutexQueueFiles);
 
         int ris = 0;
-        if(esiste == NULL) { //errore: il file non esiste
+        if(esiste == NULL) { //errore: il file non esiste (dovrebbe già essere stato creato dalla openFile)
           ris = -1;
           //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
           SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
@@ -512,7 +512,7 @@ static void* threadF(void* arg) {
         else //il file esiste
           risposta = 0;*/
         int flags;
-        SYSCALL_EXIT("readn", notused, readn(connfd, &flags, sizeof(int)), "read", "");
+        SYSCALL_EXIT("readn", notused, readn(connfd, &flags, sizeof(int)), "read", ""); //passo i flag che deve usare la open
         //if (readn(connfd, &flags, sizeof(int))<=0) { fprintf(stderr, "sbagliato2\n"); }
         //fprintf(stderr, "codice flags %d\n", flags);
         if(esiste == NULL && flags == 0) { //deve aprire il file ma non esiste, errore
@@ -554,6 +554,7 @@ static void* threadF(void* arg) {
           risposta = -2;
         }
         Pthread_mutex_unlock(&mutexQueueFiles);
+        //mando al client la risposta della openFile
         SYSCALL_EXIT("writen", notused, writen(connfd, &risposta, sizeof(int)), "write", "");
         //if (writen(connfd, &risposta, sizeof(int))<=0) { perror("c"); }
         if(risposta == 0)
@@ -581,6 +582,7 @@ static void* threadF(void* arg) {
           Pthread_mutex_unlock(&fileramtmp->lock);
           Pthread_mutex_unlock(&mutexQueueFiles);
         }
+        //mando al client la risposta della closeFile
         SYSCALL_EXIT("writen", notused, writen(connfd, &ris, sizeof(int)), "write", "");
         //if (writen(connfd, &ris, sizeof(int))<=0) { perror("c"); }
         break;
@@ -645,7 +647,7 @@ static void* tSegnali(void* arg) {
   int segnalericevuto;
   sigwait(mask, &segnalericevuto);
   fprintf(stdout, "Sono il thread gestore segnali, ho ricevuto il segnale %d\n", segnalericevuto);
-  if(segnalericevuto == 2 || segnalericevuto == 3) { //gestione SIGINT
+  if(segnalericevuto == 2 || segnalericevuto == 3) { //gestione SIGINT o SIGQUIT, che si controllano allo stesso modo
     rsigint = 1;
 
   } else if(segnalericevuto == 1) { //gestione SIGHUP
@@ -923,7 +925,7 @@ int main(int argc, char* argv[]) {
 
           continue;
         }
-        if (r<0) { perror("readn"); exit(EXIT_FAILURE); }
+        if (r < 0) { perror("readn"); exit(EXIT_FAILURE); }
         char* str;
         int strlength;
         SYSCALL_EXIT("readn", notused, readn(connfd, &strlength, sizeof(int)), "read", "");
