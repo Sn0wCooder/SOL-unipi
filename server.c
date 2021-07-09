@@ -26,7 +26,7 @@
 //"numeroFIle 100"
 #define MAXBUFFER 1000
 #define MAXSTRING 100
-#define CONFIGFILE "config.txt"
+#define CONFIGFILE "./configs/config.txt"
 #define SPAZIO "spazio"
 #define NUMEROFILE "numeroFile"
 #define SOC "sockName"
@@ -116,7 +116,7 @@ int areThereConnections(fd_set set, int fdmax) {
 
 
 
-void parser(void) {
+void parser(char* configfile) {
   char* a = NULL;
   int i;
   char* save;
@@ -129,7 +129,7 @@ void parser(void) {
   ec_null((buffer = malloc(sizeof(char) * MAXBUFFER)), "malloc");
   FILE* p;
   //fprintf(stderr,"NON abbiamo aperto il file\n");
-  ec_null((p = fopen(CONFIGFILE, "r")), "fopen");
+  ec_null((p = fopen(configfile, "r")), "fopen");
 
   //fprintf(stderr, "abbiamo aperto il file\n");
   while(fgets(buffer, MAXBUFFER, p)) {
@@ -176,8 +176,10 @@ void parser(void) {
     }
     if(strcmp(tmp[0], SOC) == 0) {
 
-      ec_null((SockName = malloc(sizeof(char) * strlen(tmp[1]))), "malloc");
-      strncpy(SockName, tmp[1], strlen(tmp[1]));
+      ec_null((SockName = malloc(sizeof(char) * (strlen(tmp[1])))), "malloc");
+      strcpy(SockName, tmp[1]);
+      fprintf(stderr, "strlen %d\n",strlen(tmp[1]));
+      SockName[strlen(tmp[1]) - 1] = '\0';
       //numeroFile = atoi(tmp[1]);
     }
     if(strcmp(tmp[0], WORK) == 0) {
@@ -263,6 +265,7 @@ static void* threadF(void* arg) {
       fprintf(stderr, "Sono il thread %d e ho ricevuto un segnale\n", numthread);
       break;
     }
+    //if(rsighup == 1 && q->len == 0)
 
     ComandoClient* tmp = pop(&queueClient);
     //fprintf(stderr, "lunghezza lista %lu\n", queueClient->len);
@@ -349,7 +352,7 @@ static void* threadF(void* arg) {
                 fprintf(stderr, "Sto espellendo il file %s dal server per far spazio al file %s\n", fileramtmptrash->nome, parametro);
                 spazioOccupato-=fileramtmptrash->length;
                 free(fileramtmptrash->nome);
-                if(buffer != NULL) //il buffer potrebbe non esistere
+                if(fileramtmptrash->buffer != NULL) //il buffer potrebbe non esistere
                   free(fileramtmptrash->buffer);
                 free(fileramtmptrash);
                   //vanno fatte FREE
@@ -647,6 +650,9 @@ static void* tSegnali(void* arg) {
 
   } else if(segnalericevuto == 1) { //gestione SIGHUP
     rsighup = 1;
+  } else {
+    tSegnali(arg);
+    return NULL;
   }
   int notused;
   SYSCALL_EXIT("writen", notused, writen(psegnali[1], "segnale", 7), "write", "");
@@ -656,7 +662,8 @@ static void* tSegnali(void* arg) {
 }
 
 int main(int argc, char* argv[]) {
-  parser();
+  if(argc != 2) { fprintf(stderr, "ERRORE: passare il file config.txt\n"); exit(EXIT_FAILURE); }
+  parser(argv[1]);
 
   //inizializzo statistiche
   ec_null((s = malloc(sizeof(Statistiche))), "malloc");
@@ -819,7 +826,7 @@ int main(int argc, char* argv[]) {
 
         //gestione segnali
         if(connfd == psegnali[0]) { //se è vero, ho ricevuto un segnale
-          fprintf(stderr, "Ho ricevuto segnale nel main\n");
+          fprintf(stderr, "Ho ricevuto segnale rsighup %d rsigint %d nel main\n", rsighup, rsigint);
           char buftmp[8];
           //read(connfd, buftmp, 7);
           SYSCALL_EXIT("readn", notused, readn(connfd, buftmp, 7), "read", "");
@@ -890,10 +897,12 @@ int main(int argc, char* argv[]) {
           if (connfd == fdmax)
             fdmax = updatemax(set, fdmax);
           if(nattivi > 0) {
-            //fprintf(stderr, "ci sono connessioni attive, nattivi %d\n", nattivi);
+            if(rsighup)
+              fprintf(stderr, "ci sono connessioni attive, nattivi %d\n", nattivi);
             fprintf(stdout, "");
           } else {
-            //fprintf(stderr, "Non ci sono altre connessioni\n");
+            if(rsighup)
+              fprintf(stderr, "Non ci sono altre connessioni\n");
             if(rsighup) {
               rsigint = 1; //a questo punto si deve comportare come avesse ricevuto un sigint
               if(pthread_cond_broadcast(&condQueueClient) != 0) { perror("pthread_cond_broadcast"); exit(EXIT_FAILURE); }

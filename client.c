@@ -20,7 +20,7 @@
 #include "util.h"
 #include "parser.h"
 
-#define SOCKNAME "ProvaSock.sk"
+#define SOCKNAME "./configs/sock.sk"
 #define MAXBUFFER 1000
 #define O_CREATE 1
 #define O_OPEN 0
