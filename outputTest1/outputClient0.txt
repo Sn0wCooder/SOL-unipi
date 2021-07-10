@@ -1,0 +1,30 @@
+Mi sono connesso al server!
+Sto processando il comando 'w' con parametro .
+Sto processando il comando 'c' con parametro serverTest1.sh
+File da rimuovere: serverTest1.sh
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/.DS_Store
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/.DS_Store nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/.DS_Store
+File /Users/leonardo/Desktop/SOL-unipi/.DS_Store scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/.DS_Store
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+File /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/util.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/util.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/util.c
+File /Users/leonardo/Desktop/SOL-unipi/util.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/util.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/Makefile
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/Makefile nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/Makefile
+File /Users/leonardo/Desktop/SOL-unipi/Makefile scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/Makefile
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/Relazione.docx nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+File /Users/leonardo/Desktop/SOL-unipi/Relazione.docx scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+Connessione col server chiusa

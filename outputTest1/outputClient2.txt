@@ -1,0 +1,7 @@
+Mi sono connesso al server!
+Sto processando il comando 'r' con parametro client.c
+Sto leggendo il file client.c
+Ho fatto la openFile di client.c
+Ho letto il file client.c dal server
+Ho fatto la closeFile di client.c
+Connessione col server chiusa
