@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g
+CFLAGS = -g -lpthread
 CONFIGFILE1 = ./configs/config1.txt
 CONFIGFILE1 = ./configs/config2.txt
 CLIENTOUTPUT_DIR1 = ./outputTest1

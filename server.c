@@ -387,6 +387,7 @@ static void* threadF(void* arg) {
                 for(int i = 0; i < lentmp; i++)
                   newfile->buffer[i + newfile->length] = buftmp[i];
                 newfile->length+=lentmp;
+                free(buftmp);
               }
               ris = 0; //tutto bene
 
@@ -1040,7 +1041,7 @@ int main(int argc, char* argv[]) {
     }
   }
   cleanup();
-  atexit(cleanup);
+  //atexit(cleanup);
 
   //stampo le statistiche
   fprintf(stdout, "\n\nStatistiche del server raggiunte:\n");
