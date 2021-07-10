@@ -36,7 +36,7 @@
 int spazio = 0;
 int numeroFile = 0;
 int numWorkers = 0;
-char* SockName;
+char* SockName = NULL;
 Queue *queueClient; //coda dei comandi gestiti dai thread
 Queue *queueFiles; //coda dei file memorizzati
 
@@ -90,7 +90,10 @@ typedef struct _file {
 } msg_t;*/
 
 void cleanup() {
-  unlink(SockName);
+  if(SockName != NULL) {
+    unlink(SockName);
+    free(SockName);
+  }
 }
 
 int updatemax(fd_set set, int fdmax) {
@@ -179,9 +182,9 @@ void parser(char* configfile) {
     }
     if(strcmp(tmp[0], SOC) == 0) {
 
-      ec_null((SockName = malloc(sizeof(char) * (strlen(tmp[1])))), "malloc");
+      ec_null((SockName = malloc(sizeof(char) * (strlen(tmp[1]) + 1))), "malloc");
       strcpy(SockName, tmp[1]);
-      fprintf(stderr, "strlen %d\n",strlen(tmp[1]));
+      //fprintf(stderr, "strlen %d\n",strlen(tmp[1]));
       SockName[strlen(tmp[1])] = '\0';
       //numeroFile = atoi(tmp[1]);
     }
@@ -711,8 +714,8 @@ int main(int argc, char* argv[]) {
   //numWorkers = 6;
   //ec_meno1(cleanup(), "cleanup");
 
-  cleanup();
-  atexit(cleanup);
+  //cleanup();
+  //atexit(cleanup);
   queueClient = initQueue(); //coda dei file descriptor dei client che provano a connettersi
   queueFiles = initQueue();
 
