@@ -566,7 +566,7 @@ int visitaRicorsiva(char* name, int *n, Queue **q) {
           new->name[strlen(buffer)] = '\0';
           new->n = 0;
           strncpy(new->name, buffer, strlen(buffer));
-          if(push(q, new) == -1) return -1;
+          if(pushTesta(q, new) == -1) return -1;
           free(buffer);
           //fprintf(stderr, "HO APPENA SCRITTO %s, strlen %ld\n", new->name, strlen(new->name));
           //printQueuee(*q);

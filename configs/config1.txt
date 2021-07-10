@@ -1,4 +1,4 @@
-spazio 45000000
-numeroFile 5000
-numWorkers 19
+spazio 134217728
+numeroFile 10000
+numWorkers 1
 sockName sock.sk

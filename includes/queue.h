@@ -18,6 +18,7 @@ typedef struct _Queue {
 } Queue;
 
 int push(Queue **q, void* el);
+int pushTesta(Queue **q, void* el);
 Queue* initQueue();
 void* pop(Queue **q);
 void* pop2(Queue **q);

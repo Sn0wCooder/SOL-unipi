@@ -45,6 +45,24 @@ int push(Queue **q, void* el) { //inserimento in coda in una FIFO
   return 0;
 }
 
+int pushTesta(Queue **q, void* el) { //inserimento in testa in una FIFO
+  Node *n;
+  ec_null((n = malloc(sizeof(Node))), "malloc");
+  if(*q == NULL)
+    return -1;
+  n->data = el;
+  n->next = (*q)->head;
+  if((*q)->len == 0) { //inserimento in coda vuota
+    (*q)->head = n;
+    (*q)->tail = n;
+    (*q)->len = 1;
+  } else { //inserimento in testa (lista non vuota)
+    (*q)->head = n;
+    (*q)->len++;
+  }
+  return 0;
+}
+
 void* returnFirstEl(Queue *q) {
   if(q->head == NULL) { //la lista è già vuota
     //fprintf(stderr, "lista vuota");
