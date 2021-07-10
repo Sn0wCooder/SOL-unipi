@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <sys/un.h>
 #include <ctype.h>
@@ -69,6 +70,7 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
 
     serv_addr.sun_family = AF_UNIX;
     strncpy(serv_addr.sun_path, socknameconfig, strlen(socknameconfig) + 1);
+    serv_addr.sun_path[strlen(socknameconfig)] = '\0';
 
     /*int notused;
     SYSCALL_EXIT("connect", notused, connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)), "connect", "");*/
@@ -581,6 +583,13 @@ int visitaRicorsiva(char* name, int *n, Queue **q) {
 }
 
 int main(int argc, char *argv[]) {
+
+  struct sigaction sapipe;
+  memset(&sapipe, 0, sizeof(struct sigaction));
+  sapipe.sa_handler = SIG_IGN;
+  sigaction(SIGPIPE, &sapipe, NULL);
+
+
   Queue *q = parser(argc, argv); //coda delle operazioni
   struct timespec abstime;
 

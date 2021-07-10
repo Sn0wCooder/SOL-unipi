@@ -647,10 +647,10 @@ static void* tSegnali(void* arg) {
   int segnalericevuto;
   sigwait(mask, &segnalericevuto);
   fprintf(stdout, "Sono il thread gestore segnali, ho ricevuto il segnale %d\n", segnalericevuto);
-  if(segnalericevuto == 2 || segnalericevuto == 3) { //gestione SIGINT o SIGQUIT, che si controllano allo stesso modo
+  if(segnalericevuto == SIGINT || segnalericevuto == SIGQUIT) { //gestione SIGINT o SIGQUIT, che si controllano allo stesso modo
     rsigint = 1;
 
-  } else if(segnalericevuto == 1) { //gestione SIGHUP
+  } else if(segnalericevuto == SIGHUP) { //gestione SIGHUP
     rsighup = 1;
   } else {
     tSegnali(arg);
@@ -832,7 +832,10 @@ int main(int argc, char* argv[]) {
           char buftmp[8];
           //read(connfd, buftmp, 7);
           SYSCALL_EXIT("readn", notused, readn(connfd, buftmp, 7), "read", "");
-          if(pthread_cond_broadcast(&condQueueClient) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
+          if(rsigint == 1 || nattivi == 0) {
+            rsigint = 1;
+            if(pthread_cond_broadcast(&condQueueClient) != 0) { perror("pthread_sigmask"); exit(EXIT_FAILURE); }
+          }
           //va gestito
           /*if(rsigint) { //il segnale ricevuto è SIGINT
 
