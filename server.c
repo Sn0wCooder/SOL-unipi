@@ -496,8 +496,9 @@ static void* threadF(void* arg) {
         char* buftmp;
         for(int i = 0; i < numDaLeggere; i++) {
           fileramtmp = nodetmp->data;
-          ec_null((buftmp = malloc(sizeof(char) * strlen(fileramtmp->nome))), "malloc");
+          ec_null((buftmp = malloc(sizeof(char) * (strlen(fileramtmp->nome) + 1))), "malloc");
           strcpy(buftmp, fileramtmp->nome);
+          //buftmp[strlen(fileramtmp->nome)] = '\0';
           int buftmplen = strlen(buftmp);
           SYSCALL_EXIT("writen", notused, writen(connfd, &buftmplen, sizeof(int)), "write", "");
           SYSCALL_EXIT("writen", notused, writen(connfd, buftmp, buftmplen * sizeof(char)), "write", "");
