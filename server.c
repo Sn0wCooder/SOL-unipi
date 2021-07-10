@@ -138,6 +138,8 @@ void parser(char* configfile) {
 
             //tokenizzo la stringa e vedo il numero di virgole
     save = NULL;
+    //fprintf(stderr, "ultimo carattere %d, buffer %s\n", buffer[strlen(buffer) - 1], buffer);
+    buffer[strlen(buffer) - 1] = '\0';
     token = strtok_r(buffer, " ",  &save);
     char** tmp;
     ec_null((tmp = malloc(sizeof(char*) * 2)), "malloc");
@@ -145,7 +147,8 @@ void parser(char* configfile) {
     while(token) {
       //fprintf(stderr, "sto processando %s\n", token);
       ec_null((tmp[i] = malloc(sizeof(char) * MAXSTRING)), "malloc");
-      strncpy(tmp[i], token, strlen(token) - i); //se è il secondo elemento (i = i) non deve prendere il newline finale,
+      strcpy(tmp[i], token); //se è il secondo elemento (i = i) non deve prendere il newline finale,
+      //fprintf(stderr, "tmp : %s\n", tmp[i]);
       token = strtok_r(NULL, " ", &save);
       i++;
     }
@@ -179,7 +182,7 @@ void parser(char* configfile) {
       ec_null((SockName = malloc(sizeof(char) * (strlen(tmp[1])))), "malloc");
       strcpy(SockName, tmp[1]);
       fprintf(stderr, "strlen %d\n",strlen(tmp[1]));
-      SockName[strlen(tmp[1]) - 1] = '\0';
+      SockName[strlen(tmp[1])] = '\0';
       //numeroFile = atoi(tmp[1]);
     }
     if(strcmp(tmp[0], WORK) == 0) {
