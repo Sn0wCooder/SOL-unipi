@@ -1,8 +1,5 @@
-il size_t sizebuff nel client non va con le richieste di scrittura (-w)
 basename??
-risolvere problema connessioni per sighup
 makefile
-config.txt passato al server come argomento
 
+relazione:
 nella relazione scrivere che la openfile fallita per i duplicati non è un errore: la prima volta fallisce (perchè passiamo crea + lock, ma il file esiste già) e la seconda volta fa bene (flag open, senza crea)
-scrivere come sono gestiti i segnali

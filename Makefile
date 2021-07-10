@@ -32,17 +32,7 @@ CLIENTCONFIGOPTIONS = -f $(SOCKNAME) -p -t 200
 
 #configurazioni di un client per testare singolarmente
 # le funzioni dell'API
-CONFTEST1OPENFILE = -i .,1 -i .,1 -o fileDaLeggere.txt,clientConfig.c
-CONFTEST1CLOSEFILE = -i .,2 -C fileDaLeggere.txt,clientConfig.c,clientConfig.c
-CONFTEST1READFILE = -d ./TestFileBinari -i .,2 -C clientConfig.c \
- -r fileDaLeggere.txt,clientConfig.c,clientConfig.h
-CONFTEST1READNFILESWRONG = -d ./Pippo -i .,5 -R0
-CONFTEST1READNFILESRIGHT = -d ./TestFileBinari -i .,5 -R0
-CONFTEST1REMOVEFILE = -i .,5 -c fileDaLeggere.txt,clientConfig.c
-CONFTEST1WRITEFILE = -i .,5 \
-	-W clientConfig.h,pippo.txt,serverTestScript.sh \
-	-C descriptor.h -W descriptor.h -o descriptor.h \
-	-W descriptor.h
+
 
 .PHONY : all, cleanall, test1, test2
 
