@@ -41,7 +41,7 @@ all:
 	make -B client
 
 cleanall:
-	rm -rf $(SOCKNAME) $(TARGETS)
+	rm -rf $(SOCKNAME) $(TARGETS) $(CLIENTOUTPUT_DIR1) $(CLIENTOUTPUT_DIR2)
 	#rm -f $(OBJ_FOLDER)/*.o
 	#rm -f $(LIB_FOLDER)/*.so
 	#rm -f ./SaveReadFileDirectory/AllCacheFilesTest2/*
