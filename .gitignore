@@ -1,1 +1,9 @@
 a.out
+.DS_STORE
+*.sk
+*.dSYM/
+outputTest1/
+outputTest2/
+server
+client
+
