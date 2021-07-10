@@ -1,0 +1,17 @@
+Mi sono connesso al server!
+Sto processando il comando 'W' con parametro client.c
+Scrivo il file client.c nel server
+Ho fatto la openFile di client.c
+File client.c scritto correttamente nel server
+Ho fatto la closeFile di client.c
+Sto processando il comando 'W' con parametro server.c
+Scrivo il file server.c nel server
+Ho fatto la openFile di server.c
+File server.c scritto correttamente nel server
+Ho fatto la closeFile di server.c
+Sto processando il comando 'W' con parametro server
+Scrivo il file server nel server
+Ho fatto la openFile di server
+File server scritto correttamente nel server
+Ho fatto la closeFile di server
+Connessione col server chiusa

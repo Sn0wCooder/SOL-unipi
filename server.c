@@ -32,6 +32,7 @@
 #define SOC "sockName"
 #define WORK "numWorkers"
 #define MAXBACKLOG 32
+#define BYTETOMB 1048576
 
 int spazio = 0;
 int numeroFile = 0;
@@ -213,7 +214,8 @@ void parser(char* configfile) {
   }
   //fprintf(stderr,"abbiamo chiuso il file\n");
   //if(verbose) {
-  fprintf(stdout,"Spazio: %d\n", spazio);
+  float sptmp = spazio / BYTETOMB;
+  fprintf(stdout,"Spazio: %.2f MB\n", sptmp);
   fprintf(stdout,"numeroFile: %d\n", numeroFile);
   fprintf(stdout,"SockName: %s\n", SockName);
   fprintf(stdout,"numWorkers: %d\n", numWorkers);
@@ -223,10 +225,13 @@ void parser(char* configfile) {
 void printQueueFiles(Queue *q) {
   Node* tmp = q->head;
   fileRAM *no = NULL;
-  fprintf(stdout, "Coda dei file:\n");
+  float spaziotmp = spazioOccupato;
+  spaziotmp/=BYTETOMB;
+  fprintf(stdout, "Coda dei file (spazio occupato %.2f MB):\n", spaziotmp);
   while(tmp != NULL) {
     no = tmp->data;
-    fprintf(stdout, "filename %s, length %ld\n", no->nome, no->length);
+    //float nosptmp = no->length / BYTETOMB;
+    fprintf(stdout, "File name %s, size %ld bytes\n", no->nome, no->length);
     tmp = tmp->next;
   }
   fprintf(stdout, "Fine stampa coda dei file\n");
@@ -319,7 +324,7 @@ static void* threadF(void* arg) {
             int cista = 1; //ci sta nel server fino a prova contraria
             if(lentmp > spazio || lentmp + newfile->length > spazio) { //non lo memorizza proprio
               //il secondo controllo dopo l'or è per vedere se l'append di un file non ci sta nel server
-              fprintf(stderr, "Il file %s è troppo grande (%ld) e non sta materialmente nel server (capienza massima %d)\n", newfile->nome, newfile->length, spazio);
+              fprintf(stderr, "Il file %s è troppo grande (%ld bytes) e non sta materialmente nel server (capienza massima %d bytes)\n", newfile->nome, lentmp + newfile->length, spazio);
 
                 //vado a scrivere nel socket che il file non ci sta
               if(lentmp > spazio) //se il file non esiste ancora (ha size null)
@@ -348,7 +353,11 @@ static void* threadF(void* arg) {
               Pthread_mutex_unlock(&s->mutexStats);
 
               while(spazioOccupato + lentmp > spazio) { //deve iniziare ad espellere file
-                fprintf(stderr, "Il server è pieno (di spazio). Devo espellere file.\n");
+                float spaziotmp = spazioOccupato;
+                spaziotmp/=BYTETOMB;
+                float lentmptmp = lentmp;
+                lentmptmp/=BYTETOMB;
+                fprintf(stderr, "Il server è pieno (di spazio, spazio occupato %.2f MB, da inserire %.2f MB). Devo espellere file.\n", spaziotmp, lentmptmp);
                 fileRAM *firstel = returnFirstEl(queueFiles);
                 if(newfile != firstel) { //non rimuove il primo elemento perchè è proprio quello che dobbiamo inserire
                   fileramtmptrash = pop(&queueFiles);
@@ -531,8 +540,10 @@ static void* threadF(void* arg) {
             fprintf(stdout, "Il server è pieno (di numero file), ne cancello uno\n");
             fileRAM *fileramtmptrash = pop(&queueFiles);
             fprintf(stdout, "Sto espellendo il file %s dal server\n", fileramtmptrash->nome);
-
-            //vanno fatte FREE
+            spazioOccupato-=fileramtmptrash->length;
+            free(fileramtmptrash->nome);
+            free(fileramtmptrash->buffer);
+            free(fileramtmptrash);
           }
 
           fileRAM *newfile;
@@ -1047,7 +1058,7 @@ int main(int argc, char* argv[]) {
   //stampo le statistiche
   fprintf(stdout, "\n\nStatistiche del server raggiunte:\n");
   fprintf(stdout, "Numero massimo di file raggiunti: %d\n", s->numMaxMemorizzato);
-  fprintf(stdout, "Numero massimo di spazio occupato: %.2f MB\n", s->spazioMaxOccupato / 1000000);
+  fprintf(stdout, "Spazio occupato al massimo: %.2f MB\n", s->spazioMaxOccupato / BYTETOMB);
   fprintf(stdout, "Numero di volte che ho eseguito l'algoritmo di rimpiazzamento: %d\n", s->numAlgoRimpiazzamento);
   printQueueFiles(queueFiles);
 

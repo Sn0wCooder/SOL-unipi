@@ -69,5 +69,5 @@ test1:
 	./testscripts/serverTest1.sh $(CLIENTOUTPUT_DIR1)
 
 test2:
-	chmod +x ./testscripts/serverTest1.sh
-	./testscripts/serverTest1.sh $(CLIENTOUTPUT_DIR1)
+	chmod +x ./testscripts/serverTest2.sh
+	./testscripts/serverTest2.sh $(CLIENTOUTPUT_DIR2)

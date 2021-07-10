@@ -1,7 +1,141 @@
+File /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Resources/DWARF/server già esistente nel server (openFile fallita)
 Mi sono connesso al server!
-Sto processando il comando 'r' con parametro client.c
-Sto leggendo il file client.c
-Ho fatto la openFile di client.c
-Ho letto il file client.c dal server
-Ho fatto la closeFile di client.c
+Sto processando il comando 'w' con parametro .
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient0.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient0.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient0.txt
+File /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient0.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient0.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient1.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient1.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient1.txt
+File /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient1.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient1.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient2.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient2.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient2.txt
+File /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient2.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/outputTest1/outputClient2.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/client
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/client nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/client
+File /Users/leonardo/Desktop/SOL-unipi/client scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/client
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/parser.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/parser.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/parser.c
+File /Users/leonardo/Desktop/SOL-unipi/parser.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/parser.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/configs/config2.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/configs/config2.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/configs/config2.txt
+File /Users/leonardo/Desktop/SOL-unipi/configs/config2.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/configs/config2.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/configs/config1.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/configs/config1.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/configs/config1.txt
+File /Users/leonardo/Desktop/SOL-unipi/configs/config1.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/configs/config1.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Info.plist
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Info.plist nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Info.plist
+File /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Info.plist scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Info.plist
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Resources/DWARF/server
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Resources/DWARF/server nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Resources/DWARF/server
+File /Users/leonardo/Desktop/SOL-unipi/server.dSYM/Contents/Resources/DWARF/server scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/serFile /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist già esistente nel server (openFile fallita)
+File /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client già esistente nel server (openFile fallita)
+ver.dSYM/Contents/Resources/DWARF/server
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/.gitignore
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/.gitignore nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/.gitignore
+File /Users/leonardo/Desktop/SOL-unipi/.gitignore scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/.gitignore
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/progettosol-20_21.pdf
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/progettosol-20_21.pdf nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/progettosol-20_21.pdf
+File /Users/leonardo/Desktop/SOL-unipi/progettosol-20_21.pdf scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/progettosol-20_21.pdf
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/client.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/client.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/client.c
+File /Users/leonardo/Desktop/SOL-unipi/client.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/client.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/server.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/server.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/server.c
+File /Users/leonardo/Desktop/SOL-unipi/server.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/server.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist
+File /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Info.plist
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client
+File /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/client.dSYM/Contents/Resources/DWARF/client
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/problemi.txt
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/problemi.txt nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/problemi.txt
+File /Users/leonardo/Desktop/SOL-unipi/problemi.txt scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/problemi.txt
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/server
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/server nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/server
+File /Users/leonardo/Desktop/SOL-unipi/server scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/server
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/queue.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/queue.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/queue.c
+File /Users/leonardo/Desktop/SOL-unipi/queue.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/queue.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/includes/queue.h
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/includes/queue.h nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/includes/queue.h
+File /Users/leonardo/Desktop/SOL-unipi/includes/queue.h scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/includes/queue.h
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/includes/util.h
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/includes/util.h nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/includes/util.h
+File /Users/leonardo/Desktop/SOL-unipi/includes/util.h scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/includes/util.h
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/includes/parser.h
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/includes/parser.h nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/includes/parser.h
+File /Users/leonardo/Desktop/SOL-unipi/includes/parser.h scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/includes/parser.h
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/Relazione.docx nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+File /Users/leonardo/Desktop/SOL-unipi/Relazione.docx scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/Relazione.docx
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/Makefile
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/Makefile nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/Makefile
+File /Users/leonardo/Desktop/SOL-unipi/Makefile scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/Makefile
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/util.c
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/util.c nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/util.c
+File /Users/leonardo/Desktop/SOL-unipi/util.c scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/util.c
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+File /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest1.sh
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest2.sh
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest2.sh nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest2.sh
+File /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest2.sh scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/testscripts/serverTest2.sh
+Sto processando il comando 'W' con parametro /Users/leonardo/Desktop/SOL-unipi/.DS_Store
+Scrivo il file /Users/leonardo/Desktop/SOL-unipi/.DS_Store nel server
+Ho fatto la openFile di /Users/leonardo/Desktop/SOL-unipi/.DS_Store
+File /Users/leonardo/Desktop/SOL-unipi/.DS_Store scritto correttamente nel server
+Ho fatto la closeFile di /Users/leonardo/Desktop/SOL-unipi/.DS_Store
 Connessione col server chiusa
