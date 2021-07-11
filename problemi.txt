@@ -1,4 +1,6 @@
 basename??
+readnfiles, nel caso un file fosse lockato passo al successivo?
+valgrind client?
 
 relazione:
 mettere pushTesta

@@ -1056,7 +1056,7 @@ int main(int argc, char* argv[]) {
   //atexit(cleanup);
 
   //stampo le statistiche
-  fprintf(stdout, "\n\nStatistiche del server raggiunte:\n");
+  fprintf(stdout, "\n\nStatistiche del server prima della chiusura:\n");
   fprintf(stdout, "Numero massimo di file raggiunti: %d\n", s->numMaxMemorizzato);
   fprintf(stdout, "Spazio occupato al massimo: %.2f MB\n", s->spazioMaxOccupato / BYTETOMB);
   fprintf(stdout, "Numero di volte che ho eseguito l'algoritmo di rimpiazzamento: %d\n", s->numAlgoRimpiazzamento);
