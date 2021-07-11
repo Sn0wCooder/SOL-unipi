@@ -1,4 +1,0 @@
-spazio 134217728
-numeroFile 10000
-numWorkers 1
-sockName sock.sk
