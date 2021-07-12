@@ -11,93 +11,38 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-//#include <libc.h>
 #include <sys/un.h>
 #include <ctype.h>
 
-//#include "errors.c"
 #include "queue.h"
 #include "parser.h"
 #include "util.h"
 
-/*typedef struct _CodaComandi {
-  char cmd;
-  char* name;
-  int n;
-} NodoComando;*/
-
-void printQueue(Queue *q) {
+void printQueue(Queue *q) { //stampa la coda dei comandi
   Node* tmp = q->head;
   NodoComando *no = NULL;
-  while(tmp != NULL) {
+  while(tmp != NULL) { //per ogni comando
     no = tmp->data;
     fprintf(stdout, "Comando %c, nome %s, n %d\n", no->cmd, no->name, no->n);
     tmp = tmp->next;
   }
 }
 
-void insert(Queue **q, char cmd, char* name, int n) { //crea il NodoComando e lo mette nella coda
-  //printf("sto inserendo %c stringa %s n %d\n", cmd, name, n);
-  NodoComando *new; // = malloc(sizeof(NodoComando));
+void insert(Queue **q, char cmd, char* name, int n) { //crea un NodoComando e lo mette nella coda
+  NodoComando *new; //nuovo comando
   ec_null((new = malloc(sizeof(NodoComando))), "malloc");
+  //inserimento dei valori nel comando
   new->cmd = cmd;
-  //printf("inserisco name %s\n", name);
   if(name != NULL) {
     ec_null((new->name = malloc(sizeof(char) * strlen(name))), "malloc");
-    //new->name = malloc(sizeof(char) * strlen(name));
     strncpy(new->name, name, strlen(name));
   }
   new->n = n;
   ec_meno1((push(q, new)), "push");
-  //push(q, new);
-  //printf("\n\n\n");
-  //printQueue(*q);
-  //printf("\n\n\n");
 }
-
-/*int isNumber(const char* s) {
-  if (s==NULL)
-    return 1;
-  if (strlen(s)==0)
-    return 1;
-  char* e = NULL;
-  errno = 0;
-  long val = strtol(s, &e, 10);
-  val = 0;
-  if (errno == ERANGE)
-    return 2;    // overflow
-  if (e != NULL && *e == (char)0) {
-    return 1;   // successo
-  }
-  return 0;   // non e' un numero
-}*/
-
-/*int isNumber1 (char* s) {
-  int ok = 1;
-  int len = strlen(s);
-  int i = 0;
-  while(ok && i < len) {
-    if(!isdigit(s[i]))
-      ok = 0;
-    i++;
-  }
-  return ok;*/
-
-
-
-
-  /**for (i=0;i<length; i++)
-        if (!isdigit(input[i]))
-        {
-            printf ("Entered input is not a number\n");
-            exit(1);
-        }
-}*/
 
 Queue* parser(int argc, char* argv[]) {
   int c;
-  //int index, sflags, lcount;
-  //char* next, login;
   savefiledir = NULL;
   timems = 0;
   verbose = 0;
@@ -105,11 +50,11 @@ Queue* parser(int argc, char* argv[]) {
   seenp = 0;
 
   char* arg, *token, *save;
-  Queue *q; // = malloc(sizeof(Queue));
+  Queue *q; //coda dei comandi che poi verrà restituita
   ec_null((q = malloc(sizeof(Queue))), "malloc");
   while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
-        case 'h': {
+        case 'h': { //messaggio di help
           fprintf(stdout, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
                     "-h                 : stampa la lista delle opzioni",
                     "-f filename        : specifica il filename del socket a cui deve connettersi il client",
@@ -125,40 +70,31 @@ Queue* parser(int argc, char* argv[]) {
             exit(EXIT_SUCCESS);
             break;
         }
-        case 'f': {
-
-          if(seenf == 1) {
+        case 'f': { //sockName a cui connettersi
+          if(seenf == 1) { //ha già visto un comando 'f', che va specificato una volta sola: errore
             fprintf(stderr, "ERRORE: l'opzione -f va specificata una volta sola\n");
             exit(EXIT_FAILURE);
           }
-          seenf = 1;
-          //insert(&q, 'f', optarg, 0);
+          seenf = 1; //ha visto un comando 'f'
           ec_null((socknameconfig = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-          //socknameconfig = malloc(sizeof(char) * strlen(optarg));
           strcpy(socknameconfig, optarg);
           socknameconfig[strlen(optarg)] = '\0';
-          //printf("filename %s\n", optarg);
-          //printQueue(q);
           break;
         }
-        case 'w': {
-            //printf("guardo w %s\n", optarg);
-            //controllare: se ci sono più dirname, se c'è n e se n è un numero
-
-            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-            //arg = malloc(sizeof(char) * strlen(optarg)); //argomento di w
+        case 'w': { //scrittura di n file
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc"); //argomento della w in una variabile temporanea
             strncpy(arg, optarg, strlen(optarg)); //lo copio in una variabile temporanea
             arg[strlen(optarg)] = '\0';
 
             //tokenizzo la stringa e vedo il numero di virgole
             save = NULL;
             token = strtok_r(arg, ",", &save);
-            char* dirname; // = malloc(sizeof(char) * strlen(token));
+            char* dirname;
             //dirname = primo token prima della prima virgola
             ec_null((dirname = malloc(sizeof(char) * (strlen(token) + 1))), "malloc");
             strncpy(dirname, token, strlen(token));
             dirname[strlen(token)] = '\0';
-            int contavirgole = -1;
+            int contavirgole = -1; //ci dovrebbe essere solo una virgola
             char* tmp; //temporanea, in cui sarà salvato l'ultimo token dopo le virgole
             while(token) {
               contavirgole++;
@@ -168,177 +104,114 @@ Queue* parser(int argc, char* argv[]) {
 
             int num;
             if(contavirgole > 1) {
-              fprintf(stderr, "FATAL ERROR: too many arguments\n");
+              fprintf(stderr, "Errore: troppi argomenti\n");
               exit(EXIT_FAILURE);
             }
-            else if(contavirgole == 1) {
-              //controllare se l'ultimo token è un numero
-              //fprintf(stderr, "tmp da vedere %s\n", tmp);
-              if(isNumber(tmp))
-                num = atoi(tmp);
+            else if(contavirgole == 1) { //fin qui ok, una sola virgola
+              if(isNumber(tmp)) //controlla che sia un numero
+                num = atoi(tmp); //lo converte in intero
               else {
-                fprintf(stderr, "FATAL ERROR: number is required\n");
+                fprintf(stderr, "Errore: richiesto un numero\n");
                 exit(EXIT_FAILURE);
               }
             } else { //contavirgole == 0
-              num = 0;
+              num = 0; //valore di default
             }
 
-            //int num = atoi(&optarg[strlen(optarg) - 1]);
-            insert(&q, 'w', dirname, num);
-            //printf("%s %d\n", dirname, num);
-            //printQueue(q);
+            insert(&q, 'w', dirname, num); //inserisce il comando nella coda dei comandi
 
             free(arg);
             break;
           }
-        case 'W': {
-            //printf("Sto guardando gli argomenti di -l\n");
-
-            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-            //arg = malloc(sizeof(char) * strlen(optarg));
-            strncpy(arg, optarg, strlen(optarg));
-            arg[strlen(optarg)] = '\0';
+        case 'W': { //scrittura di uno o più file
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc"); //argomento della funzione 'W'
+            strncpy(arg, optarg, strlen(optarg)); //lo copia dall'optarg
+            arg[strlen(optarg)] = '\0'; //inserisce il terminatore
 
             save = NULL;
-            token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
-            while(token) {
-              //printf("inserisco %s\n", token);
-              insert(&q, 'W', token, 0);
+            token = strtok_r(arg, ",", &save); //tokenizza con la virgola
+            while(token) { //per ogni elemento separato da una virgola
+              insert(&q, 'W', token, 0); //lo inserisco nella coda dei comandi
               token = strtok_r(NULL, ",", &save);
             }
             free(arg);
-            //printQueue(q);
-            //printf("\n\n\n");
             break;
           }
-          case 'r': {
-              //printf("Sto guardando gli argomenti di -l\n");
-              //fprintf(stderr, "argomento %s\n", optarg);
-
-              ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-              //arg = malloc(sizeof(char) * strlen(optarg));
-              strncpy(arg, optarg, strlen(optarg));
-              arg[strlen(optarg)] = '\0';
+          case 'r': { //lettura di uno o più file
+              ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc"); //argomento della funzione 'r'
+              strncpy(arg, optarg, strlen(optarg)); //lo copia dall'optarg
+              arg[strlen(optarg)] = '\0'; //inserisce il terminator
 
               save = NULL;
-              token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
-              while(token) {
+              token = strtok_r(arg, ",", &save); //tokenizza con la virgola
+              while(token) { //per ogni elemento separato da una virgola
                 token[strlen(token)] = '\0';
-                //printf("inserisco %s\n", token);
-                insert(&q, 'r', token, 0);
+                insert(&q, 'r', token, 0); //lo inserisco nella coda dei comandi
                 token = strtok_r(NULL, ",", &save);
               }
               free(arg);
               seenr = 1;
-              //printQueue(q);
-              //printf("\n\n\n");
               break;
             }
 
 
-        case 'R': {
+        case 'R': { //lettura di N file
             //R può avere opzionalmente una opzione, che è messa quindi facoltativa e parsata a parte
-            //printf("guardo R\n");
-            int nfacoltativo = 0;
+            int nfacoltativo = 0; //n facoltativo
             char* nextstring = NULL; //la stringa seguente a -R passata da riga di comando
             if(optind != argc) { //se -R non è l'ultimo argomento passato
-              //fprintf(stderr, "optind %d\n",optind);
               nextstring = strdup(argv[optind]);
             }
-            //fprintf(stderr, "fin qui tutto OKKKKKK\n");
-            if(nextstring != NULL && nextstring[0] != '-') { //nextstring non è un comando, bisogna controllare se è un numero o una stringa
-              if(isNumber(nextstring)) {
-                nfacoltativo = atoi(nextstring);
+            if(nextstring != NULL && nextstring[0] != '-') { //in questo if nextstring non è un comando, bisogna controllare se è un numero o una stringa
+              if(isNumber(nextstring)) { //se è un numero
+                nfacoltativo = atoi(nextstring); //aggiorna nfacoltativo
               }
               else { //non è un numero né un parametro, deve dare errore
-                fprintf(stderr, "FATAL ERROR: number is required\n");
+                fprintf(stderr, "Errore: richiesto un numero\n");
                 exit(EXIT_FAILURE);
               }
             }
-
-
-            //printQueue(q);
-            //printf("\n\n\n");
             seenR = 1;
             insert(&q, 'R', NULL, nfacoltativo);
-            //sleep(1);
-            //printf("caso R %d\n", nfacoltativo);
-            //printQueue(q);
             break;
         }
-        case 'd': {
-          //fprintf(stderr, "siamo alla d\n");
-          //insert(&q, 'd', optarg, 0);
-          ec_null((savefiledir = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-          //savefiledir = malloc(sizeof(char) * strlen(optarg));
-          strcpy(savefiledir, optarg);
-          savefiledir[strlen(optarg)] = '\0';
-          //printf("filename %s\n", optarg);
-          //printQueue(q);
+        case 'd': { //directory locale in cui andare a salvare i file ottenuti dalle letture dal server
+          ec_null((savefiledir = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc"); //alloca l'argomento
+          strcpy(savefiledir, optarg); //copia l'optarg
+          savefiledir[strlen(optarg)] = '\0'; //inserisce il terminatore
           break;
         }
-        case 't': {
-          //insert(&q, 't', optarg, 0);
-          //printf("filename %s\n", optarg);
+        case 't': { //tempo in millisecondi tra due richieste successive
           timems = atoi(optarg);
-          //printQueue(q);
           break;
         }
-        /*case 'l': {
-          insert(&q, 'l', optarg, 0);
-          //printf("filename %s\n", optarg);
-          //printQueue(q);
-          break;
-        }
-        case 'u': {
-          insert(&q, 'u', optarg, 0);
-          //printf("filename %s\n", optarg);
-          //printQueue(q);
-          break;
-        }*/
-        case 'c': {
-            //printf("Sto guardando gli argomenti di -l\n");
-
-            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc");
-            //arg = malloc(sizeof(char) * strlen(optarg));
-            strncpy(arg, optarg, strlen(optarg));
-            arg[strlen(optarg)] = '\0';
+        case 'c': { //rimozione di uno o più file dal server
+            ec_null((arg = malloc(sizeof(char) * (strlen(optarg) + 1))), "malloc"); //alloca l'argomento
+            strncpy(arg, optarg, strlen(optarg)); //copia l'optarg
+            arg[strlen(optarg)] = '\0'; //inserisce il terminatore
 
             save = NULL;
-            token = strtok_r(arg, ",", &save); // Attenzione: l’argomento stringa viene modificato!
-            while(token) {
-              //printf("inserisco %s\n", token);
-              insert(&q, 'c', token, 0);
+            token = strtok_r(arg, ",", &save); //tokenizza con la virgola
+            while(token) { //per ogni elemento separato da una virgola
+              insert(&q, 'c', token, 0); //inserisce il comando nella coda comandi
               token = strtok_r(NULL, ",", &save);
             }
             free(arg);
-            //printQueue(q);
-            //printf("\n\n\n");
             break;
           }
-          case 'p': {
-            //fprintf(stderr, "p identificato\n");
-            //insert(&q, 'p', optarg, 0);
-            //printf("filename %s\n", optarg);
-            //printQueue(q);
-            if(seenp == 1) {
+          case 'p': { //modalità verbosa
+            if(seenp == 1) { //avevo già visto unn 'p', errore
               fprintf(stderr, "ERRORE: l'opzione -p va specificata una volta sola\n");
               exit(EXIT_FAILURE);
             }
             seenp = 1;
             verbose = 1;
-            //printQueue(q);
             break;
           }
-        /*case 'S':
-                //sflag++;                        other option
-            printf("caso S\n");
-            break;*/
-        case ':':                           /* error - missing operand */
+        case ':':
             fprintf(stderr, "Errore: l'opzione -%c richiede un argomento\n", optopt);
             break;
-        case '?':                           /* error - unknown option */
+        case '?':
             fprintf(stderr,"Opzione non riconosciuta: -%c\n", optopt);
             break;
       }
