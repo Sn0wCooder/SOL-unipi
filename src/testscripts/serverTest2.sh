@@ -13,7 +13,7 @@ sockName="sock.sk"
 commonConf="-f $sockName -t 200 -p"
 #configurazioni di clients
 confClient1="$commonConf -W client.c,server.c,server"
-confClient2="$commonConf -c $(pwd)/client.c"
+confClient2="$commonConf -c client.c"
 confClient3="$commonConf -w ."
 
 #setup array di configurazioni client

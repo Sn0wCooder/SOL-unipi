@@ -190,7 +190,7 @@ Node* fileExistsInServer(Queue *q, char* nomefile) { //se esiste il file nel ser
   fileRAM *no = NULL;
   while(tmp != NULL) { //controlla ogni file
     no = tmp->data;
-    if(strcmp(nomefile, no->nome) == 0) {
+    if(strcmp(basename(nomefile), no->nome) == 0) {
       return tmp;
     }
     tmp = tmp->next;
@@ -448,9 +448,9 @@ static void* threadF(void* arg) { //thread worker
           ec_null((newfile = malloc(sizeof(fileRAM))), "malloc");
           //inizializza i dati di quel file
           if(pthread_mutex_init(&newfile->lock, NULL) != 0) { perror("pthread_mutex_init"); exit(EXIT_FAILURE); } //inizializza la lock di quel file
-          ec_null((newfile->nome = malloc(sizeof(char) * (strlen(parametro) + 1))), "malloc");
-          strcpy(newfile->nome, parametro);
-          newfile->nome[strlen(parametro)] = '\0';
+          ec_null((newfile->nome = malloc(sizeof(char) * (strlen(basename(parametro)) + 1))), "malloc");
+          strcpy(newfile->nome, basename(parametro));
+          newfile->nome[strlen(basename(parametro))] = '\0';
           newfile->length = 0;
           newfile->buffer = NULL;
           newfile->is_locked = connfd;
