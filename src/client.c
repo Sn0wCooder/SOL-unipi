@@ -248,7 +248,7 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
   char* ntmp; //numero temporaneo da mandare al server
   ec_null((ntmp = malloc(sizeof(char) * 10)), "malloc");
   if(sprintf(ntmp, "%d", n) < 0) { //lo alloca a stringa per poter fare la writeCMD
-    perror("snprintf");
+    perror("sprintf");
     return -1;
   }
   if(writeCMD(ntmp, 'R') == -1) {
@@ -278,7 +278,7 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
         return -1;
       }
       char path[4096];
-      if(snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]) < 0) { perror("snprintf"); return -1; } //path completa su cui scrivere
+      if(snprintf(path, sizeof(path), "%s/%s", dirname, basename(arr_buf[i])) < 0) { perror("snprintf"); return -1; } //path completa su cui scrivere
       if(writeBufToDisk(path, buffile, sizebufffile) == -1) { return -1; } //scrittura nel disco
       if(closeFile(arr_buf[i]) == -1) { return -1; }
       free(buffile);
@@ -380,7 +380,7 @@ int EseguiComandoClientServer(NodoComando *tmp) { //si occupa dell'esecuzione de
       } else {
         if(savefiledir != NULL && buf != NULL) { //se deve salvare il file in locale
           char path[4096];
-          if(snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name) < 0) { perror("snprintf"); return -1; }
+          if(snprintf(path, sizeof(path), "%s/%s", savefiledir, basename(tmp->name)) < 0) { perror("snprintf"); return -1; }
           if(writeBufToDisk(path, buf, sizebuff) == -1) return -1; //da controllare free nel caso errori
           if(closeFile(tmp->name) == -1) return -1;
         }
