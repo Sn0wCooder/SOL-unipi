@@ -501,7 +501,11 @@ int main(int argc, char *argv[]) {
         ec_null((getcwd(tmp->name, 1024)), "getcwd");
       }
 
-      if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) return -1;
+      if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) {
+        free(tmp->name);
+        free(tmp);
+        return -1;
+      }
       free(tmp->name);
     } else { //comando normale, lo esegue
       if(EseguiComandoClientServer(tmp) == -1) fprintf(stderr, "Errore nel comando %c con parametro %s\n", tmp->cmd, tmp->name);
