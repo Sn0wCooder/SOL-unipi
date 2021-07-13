@@ -174,6 +174,7 @@ Queue* parser(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
               }
             }
+            free(nextstring);
             seenR = 1;
             insert(&q, 'R', NULL, nfacoltativo);
             break;
