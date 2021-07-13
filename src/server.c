@@ -353,11 +353,11 @@ static void* threadF(void* arg) { //thread worker
             risposta = -1;
           } else { //file esiste e lockato, deve essere rimosso
             spazioOccupato-= tmpfileramtrash->length; //aggiorno lo spazio occupato
+            risposta = removeFromQueue(&queueFiles, esiste); //rimozione dalla coda
             free(tmpfileramtrash->nome);
             if(tmpfileramtrash->buffer != NULL)
               free(tmpfileramtrash->buffer);
             free(tmpfileramtrash);
-            risposta = removeFromQueue(&queueFiles, esiste); //rimozione dalla coda
             fprintf(stdout, "File %s rimosso con successo dal server\n", parametro);
           }
           Pthread_mutex_unlock(&mutexQueueFiles);
