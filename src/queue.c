@@ -108,11 +108,14 @@ int removeFromQueue(Queue **q, Node* toDelete) { //rimuove dalla coda il nodo to
         if(tmp->next == NULL) //ultimo elemento nella coda
           (*q)->tail = tmp_prec;
       }
-      //free(tmp);
+      free(tmp);
+      tmp = NULL;
       ok = 0; //successo, cancellato
     }
-    tmp_prec = tmp;
-    tmp = tmp->next;
+    if(tmp != NULL) {
+      tmp_prec = tmp;
+      tmp = tmp->next;
+    }
   }
   return ok;
 }
