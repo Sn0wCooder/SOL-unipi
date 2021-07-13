@@ -29,8 +29,8 @@ if test -f "$sockName"; then
     rm $sockName
 fi
 #creazione shell in bg con valgrind per ottenerne il PID tramite $!
-#valgrind --leak-check=full --show-leak-kinds=all -v ./server configs/config1.txt &
-./server configs/config1.txt &
+valgrind --leak-check=full --show-leak-kinds=all -v ./server configs/config1.txt &
+#./server configs/config1.txt &
 serverPID=$!
 
 #se la cartella già esiste, la cancello e la ricreerò tramite lo script
