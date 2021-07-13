@@ -119,7 +119,7 @@ int writeCMD(const char* pathname, char cmd) { //scrive il comando nel server (c
   }
   int notused;
   char* towrite; //parametro da scriver
-  ec_null((towrite = malloc(sizeof(char) * strlen(pathname) + 1)), "malloc");
+  ec_null((towrite = malloc(sizeof(char) * (strlen(pathname) + 1))), "malloc");
   strcpy(towrite, pathname);
   towrite[strlen(pathname)] = '\0';
   SYSCALL_EXIT("writen", notused, writen(sockfd, &cmd, sizeof(char)), "write", ""); //scrive il primo carattere, il char del comando da eseguire

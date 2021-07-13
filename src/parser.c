@@ -34,8 +34,9 @@ void insert(Queue **q, char cmd, char* name, int n) { //crea un NodoComando e lo
   //inserimento dei valori nel comando
   new->cmd = cmd;
   if(name != NULL) {
-    ec_null((new->name = malloc(sizeof(char) * strlen(name))), "malloc");
-    strncpy(new->name, name, strlen(name));
+    ec_null((new->name = malloc(sizeof(char) * (strlen(name) + 1))), "malloc");
+    strcpy(new->name, name);
+    new->name[strlen(name)] = '\0';
   }
   new->n = n;
   ec_meno1((push(q, new)), "push");
@@ -119,6 +120,7 @@ Queue* parser(int argc, char* argv[]) {
             }
 
             insert(&q, 'w', dirname, num); //inserisce il comando nella coda dei comandi
+            free(dirname);
 
             free(arg);
             break;
