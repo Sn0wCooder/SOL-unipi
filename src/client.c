@@ -282,7 +282,7 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
     } else { //file non aperto, errore
       errno = EACCES;
       fprintf(stderr, "openFile fallita per il file %s\n", arr_buf[i]);
-      return -1;
+      //return -1;
     }
     free(arr_buf[i]);
   }
