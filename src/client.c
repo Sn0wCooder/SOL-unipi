@@ -23,7 +23,7 @@
 
 #define SOCKNAME "./configs/sock.sk"
 #define MAXBUFFER 1000
-#define MAX_LEN_PATH_BUF MAX_LEN_PATH_BUF
+#define MAX_LEN_PATH_BUF 4096
 #define O_CREATE 1 //flag per la openFile
 #define O_OPEN 0 //flag per la openFile
 long sockfd; //fd del socket a cui connettersi
