@@ -508,8 +508,9 @@ int main(int argc, char *argv[]) {
 
       //pulizia tmp
       free(tmp->name);
-      free(tmp);
+      //free(tmp);
     }
+    free(tmp);
 
   }
 

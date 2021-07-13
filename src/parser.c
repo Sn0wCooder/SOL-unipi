@@ -53,6 +53,7 @@ Queue* parser(int argc, char* argv[]) {
   char* arg, *token, *save;
   Queue *q; //coda dei comandi che poi verrà restituita
   ec_null((q = malloc(sizeof(Queue))), "malloc");
+  q->len = 0;
   while((c = getopt(argc, argv, "hf:w:W:r:Rd:t:l:u:c:p")) != -1){
     switch(c){
         case 'h': { //messaggio di help
