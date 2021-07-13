@@ -16,7 +16,7 @@ confClient1="$commonConf -w .,5 -c serverTest1.sh"
 confClient2="$commonConf -W client.c,server.c,server"
 confClient3="$commonConf -d $saveDir -r client.c"
 confClient4="$commonConf -d $saveDir -R 4"
-confClient5="$commonConf -c client.c,server.c"
+confClient5="$commonConf -c config2.txt,server"
 
 #setup array di configurazioni client
 clientConf[0]=$confClient1
