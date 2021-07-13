@@ -432,7 +432,7 @@ static void* threadF(void* arg) { //thread worker
         SYSCALL_EXIT("readn", notused, readn(connfd, &flags, sizeof(int)), "read", ""); //leggo i flag che deve usare la open
         if(esiste == NULL && flags == 0) { //deve aprire il file ma non esiste, errore
           risposta = -1;
-          fprintf(stderr, "il file non esiste\n");
+          //fprintf(stderr, "il file non esiste\n");
         } else if(esiste == NULL && flags == 1) { //deve creare e aprire il file (che non esiste)
           if(queueFiles->len + 1 > numeroFile) { //deve iniziare ad espellere file, algoritmo di rimpiazzamento (per numero dei file)
             fprintf(stdout, "Il server è pieno (di numero file), ne cancello uno\n");
@@ -460,7 +460,7 @@ static void* threadF(void* arg) { //thread worker
         else if(esiste != NULL && flags == 0) { //deve aprire il file, che esiste già
           fileRAM *fileramtmp = esiste->data; //controlla se il file esiste
           if(fileramtmp->is_locked != -1) {
-            fprintf(stderr, "il flag è sbagliato\n");
+            //fprintf(stderr, "il flag è sbagliato\n");
             risposta = -1; //errore: il flag è settato da un altro client
           } else {
             fileramtmp->is_locked = connfd; //'locka' il file con il connfd del client

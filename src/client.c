@@ -272,7 +272,7 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
   for(int i = 0; i < n; i++) { //per ogni nome del file deve fare la readFile, e poi scrivere nel disco il risultato
     void* buffile; //buffer letto
     size_t sizebufffile; //size letta
-    fprintf(stderr, "nome del file da aprire %s\n", arr_buf[i]);
+    //fprintf(stderr, "nome del file da aprire %s\n", arr_buf[i]);
     if(openFile(arr_buf[i], O_OPEN) != -1) { //tutto ok, file aperto
       if(readFile(arr_buf[i], &buffile, &sizebufffile) == -1) { //legge il file
         return -1;
