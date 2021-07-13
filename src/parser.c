@@ -92,7 +92,7 @@ Queue* parser(int argc, char* argv[]) {
             char* dirname;
             //dirname = primo token prima della prima virgola
             ec_null((dirname = malloc(sizeof(char) * (strlen(token) + 1))), "malloc");
-            strncpy(dirname, token, strlen(token));
+            strcpy(dirname, token);
             dirname[strlen(token)] = '\0';
             int contavirgole = -1; //ci dovrebbe essere solo una virgola
             char* tmp; //temporanea, in cui sarà salvato l'ultimo token dopo le virgole
