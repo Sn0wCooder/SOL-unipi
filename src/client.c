@@ -264,13 +264,15 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
   ec_null((arr_buf = malloc(sizeof(char*) * n)), "malloc");
   for(int i = 0; i < n; i++) { //per ogni file da leggere dal server
     SYSCALL_EXIT("readn", notused, readn(sockfd, &lenpathtmp, sizeof(int)), "read", ""); //legge la lunghezza del nome del file da leggere
-    ec_null((buftmp = malloc(sizeof(char) * lenpathtmp)), "malloc"); //alloca il buffer su cui scrivere il nome del file
+    ec_null((buftmp = malloc(sizeof(char) * (lenpathtmp + 1))), "malloc"); //alloca il buffer su cui scrivere il nome del file
     SYSCALL_EXIT("readn", notused, readn(sockfd, buftmp, lenpathtmp * sizeof(char)), "read", ""); //legge il nome del file da leggere
+    buftmp[lenpathtmp] = '\0';
     arr_buf[i] = buftmp; //lo inserisce nell'array dei nomi dei file
   }
   for(int i = 0; i < n; i++) { //per ogni nome del file deve fare la readFile, e poi scrivere nel disco il risultato
     void* buffile; //buffer letto
     size_t sizebufffile; //size letta
+    fprintf(stderr, "nome del file da aprire %s\n", arr_buf[i]);
     if(openFile(arr_buf[i], O_OPEN) != -1) { //tutto ok, file aperto
       if(readFile(arr_buf[i], &buffile, &sizebufffile) == -1) { //legge il file
         return -1;
