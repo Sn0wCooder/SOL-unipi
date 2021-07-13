@@ -277,10 +277,11 @@ int readNFiles(int n, const char* dirname) { //legge N file dal server
       if(readFile(arr_buf[i], &buffile, &sizebufffile) == -1) { //legge il file
         return -1;
       }
-      char path[1024];
+      char path[4096];
       if(snprintf(path, sizeof(path), "%s/%s", dirname, arr_buf[i]) < 0) { perror("snprintf"); return -1; } //path completa su cui scrivere
       if(writeBufToDisk(path, buffile, sizebufffile) == -1) { return -1; } //scrittura nel disco
       if(closeFile(arr_buf[i]) == -1) { return -1; }
+      free(buffile);
     } else { //file non aperto, errore
       errno = EACCES;
       fprintf(stderr, "openFile fallita per il file %s\n", arr_buf[i]);
@@ -378,7 +379,7 @@ int EseguiComandoClientServer(NodoComando *tmp) { //si occupa dell'esecuzione de
         return -1;
       } else {
         if(savefiledir != NULL && buf != NULL) { //se deve salvare il file in locale
-          char path[1024];
+          char path[4096];
           if(snprintf(path, sizeof(path), "%s/%s", savefiledir, tmp->name) < 0) { perror("snprintf"); return -1; }
           if(writeBufToDisk(path, buf, sizebuff) == -1) return -1; //da controllare free nel caso errori
           if(closeFile(tmp->name) == -1) return -1;
@@ -425,8 +426,8 @@ void printQueueCMD(Queue *q) { //stampa la coda dei comandi
 int visitaRicorsiva(char* name, int *n, Queue **q) { //comando 'w', fa una visita ricorsiva per ottenere i file da mandare al server
   if(name == NULL)
     return -1;
-  char buftmp[1024];
-  if (getcwd(buftmp, 1024) == NULL) { perror("getcwd");  return -1; } //ottiene la dir corrente per poi tornarci a fine iterazione
+  char buftmp[4096];
+  if (getcwd(buftmp, 4096) == NULL) { perror("getcwd");  return -1; } //ottiene la dir corrente per poi tornarci a fine iterazione
   if (chdir(name) == -1) { perror("chdir2"); fprintf(stderr, "errno %d visitando %s\n", errno, name);  return -1; }   //mi sposto nella nuova dir
   DIR *dir;
   struct dirent *entry;
@@ -435,7 +436,7 @@ int visitaRicorsiva(char* name, int *n, Queue **q) { //comando 'w', fa una visit
       return -1;
 
   while ((entry = readdir(dir)) != NULL && (*n != 0)) { //legge le entry nella directory
-    char path[1024];
+    char path[4096];
     if (entry->d_type == DT_DIR) {
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || entry->d_name[0] == '.')
         continue;
@@ -445,7 +446,7 @@ int visitaRicorsiva(char* name, int *n, Queue **q) { //comando 'w', fa una visit
       } else if (entry->d_type == DT_REG) { //ogni file regolare che vede, deve decrementare n
         if(*n > 0 || *n == -1) { //nuovo file da scrivere
           char *buffer;
-          ec_null((buffer = malloc(sizeof(char) * 1024)), "malloc");
+          ec_null((buffer = malloc(sizeof(char) * 4096)), "malloc");
           ec_null((realpath(entry->d_name, buffer)), "realpath");
           NodoComando *new; //alloca un nuovo comando
           ec_null((new = malloc(sizeof(NodoComando))), "malloc");
@@ -499,8 +500,8 @@ int main(int argc, char *argv[]) {
 
       if(strcmp(tmp->name, ".") == 0) { //trasformo le dir . in directory path complete prima di chiamare la visitaRicorsiva
         free(tmp->name);
-        ec_null((tmp->name = malloc(sizeof(char) * 1024)), "malloc");
-        ec_null((getcwd(tmp->name, 1024)), "getcwd");
+        ec_null((tmp->name = malloc(sizeof(char) * 4096)), "malloc");
+        ec_null((getcwd(tmp->name, 4096)), "getcwd");
       }
 
       if(visitaRicorsiva(tmp->name, &(tmp->n), &q) == -1) {

@@ -1,6 +1,7 @@
 basename??
 readnfiles, nel caso un file fosse lockato passo al successivo?
 valgrind client?
+define 4096 
 
 relazione:
 mettere pushTesta

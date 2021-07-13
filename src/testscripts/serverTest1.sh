@@ -36,6 +36,8 @@ serverPID=$!
 #se la cartella già esiste, la cancello e la ricreerò tramite lo script
 rm -rf $saveDir
 
+sleep 2 #aspetto che valgrind venga eseguito per bene
+
 if mkdir $saveDir;then
   for((i=0;$i < ${#clientConf[@]};i++));do
     nomeFile=$saveDir/outputClient$i.txt
