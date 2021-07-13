@@ -40,7 +40,7 @@ if mkdir $saveDir;then
   for((i=0;$i < ${#clientConf[@]};i++));do
     nomeFile=$saveDir/outputClient$i.txt
     if touch $nomeFile;then
-      ./client ${clientConf[$i]} &> $nomeFile & #redirigo output client sul file
+      valgrind --leak-check=full --show-leak-kinds=all -v ./client ${clientConf[$i]} &> $nomeFile & #redirigo output client sul file
     else
       echo 'Errore creazione file'
     fi

@@ -496,6 +496,7 @@ int main(int argc, char *argv[]) {
         tmp->n = -1;
 
       if(strcmp(tmp->name, ".") == 0) { //trasformo le dir . in directory path complete prima di chiamare la visitaRicorsiva
+        free(tmp->name);
         ec_null((tmp->name = malloc(sizeof(char) * 1024)), "malloc");
         ec_null((getcwd(tmp->name, 1024)), "getcwd");
       }
@@ -516,6 +517,8 @@ int main(int argc, char *argv[]) {
   int notused;
   int n = -1;
   ec_meno1((closeConnection(socknameconfig)), "closeConnection"); //chiude la connessione con il server
+  free(socknameconfig);
+  free(savefiledir);
   free(q);
   return 0;
 }
