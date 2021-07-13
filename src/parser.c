@@ -176,7 +176,7 @@ Queue* parser(int argc, char* argv[]) {
             }
             free(nextstring);
             seenR = 1;
-            insert(&q, 'R', NULL, nfacoltativo);
+            insert(&q, 'R', "-", nfacoltativo);
             break;
         }
         case 'd': { //directory locale in cui andare a salvare i file ottenuti dalle letture dal server
