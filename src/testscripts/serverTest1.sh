@@ -14,8 +14,8 @@ commonConf="-f sock.sk -t 200 -p"
 #configurazioni di clients
 confClient1="$commonConf -w .,5"
 confClient2="$commonConf -W client.c,server.c,server"
-confClient3="$commonConf -d $saveDir -r client.c"
-confClient4="$commonConf -W client,server -c client,server"
+confClient3="$commonConf -d $saveDir -r $(pwd)/client.c"
+confClient4="$commonConf -W client,server -c $(pwd)/client,$(pwd)/server"
 confClient5="$commonConf -d $saveDir -R 4"
 
 #setup array di configurazioni client
